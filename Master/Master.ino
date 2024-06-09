@@ -25,13 +25,13 @@
 
   #ifndef RX1
   #if CONFIG_IDF_TARGET_ESP32
-  #define RX1 26 /* Now by default */
+  #define RX1 26
   #endif
   #endif
 
   #ifndef TX1
   #if CONFIG_IDF_TARGET_ESP32
-  #define TX1 27 /* Now by default */
+  #define TX1 27
   #endif
   #endif
 
