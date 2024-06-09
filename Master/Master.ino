@@ -16,21 +16,22 @@
   Events Run On: "Core 1"
   Erase All Flash Before Sketch Upload: "Disabled"
   JTAG Adapter: "Disabled"
+  Zigbee Mode: "Disabled"
   Programmer: "Esptool"
 */
 
 /*
-  /home/bitscoper/.arduino15/packages/esp32/hardware/esp32/2.0.16/cores/esp32/HardwareSerial.cpp
+  /home/bitscoper/.arduino15/packages/esp32/hardware/esp32/3.0.1/cores/esp32/HardwareSerial.h
 
   #ifndef RX1
   #if CONFIG_IDF_TARGET_ESP32
-  #define RX1 25
+  #define RX1 26 /* Now by default */
   #endif
   #endif
 
   #ifndef TX1
   #if CONFIG_IDF_TARGET_ESP32
-  #define TX1 26
+  #define TX1 27 /* Now by default */
   #endif
   #endif
 
