@@ -5,54 +5,633 @@ Board: "Arduino Mega or Mega 2560"
 Processor: "ATmega2560 (Mega 2560)"
 */
 
-#define Master_Board Serial2
+#include <Arduino.h>
+#include <Wire.h>
 
-#include "ArduinoJson.h"
+#include <MPU9250_WE.h>
 
-#define MQ_2 A0
-#define MQ_3 A1
-#define MQ_4 A2
-#define MQ_5 A3
-#define MQ_6 A4
-#define MQ_7 A5
-#define MQ_8 A6
-#define MQ_9 A7
-#define MQ_135 A8
+#include <BH1750.h>
 
-float MQ_2_Value, MQ_3_Value, MQ_4_Value, MQ_5_Value, MQ_6_Value, MQ_7_Value, MQ_8_Value, MQ_9_Value, MQ_135_Value;
+#include <Seeed_BME280.h>
 
-void setup(void)
-{
-  Master_Board.begin(115200);
+#include <rdm6300.h>
+
+#include <TinyGPSPlus.h>
+
+#include <RTClib.h>
+
+#include <Servo.h>
+
+#include <LiquidCrystal_I2C.h>
+
+#include <ArduinoJson.h>
+
+#define MPU9250_ADDRESS 0x69
+#define BH1750_ADDRESS 0x23
+
+#define MQ2 A0
+#define MQ3 A1
+#define MQ4 A2
+#define MQ5 A3
+#define MQ6 A4
+#define MQ7 A5
+#define MQ8 A6
+#define MQ9 A7
+#define MQ135 A8
+
+#define RCWL0516 23
+
+#define FLAME_SENSOR 22
+
+#define RDM6300_HS_UART Serial3
+#define RDM6300_SS_PIN 10
+
+#define NEO7M Serial2
+#define NEO7M_BAUD_RATE 9600
+
+#define SG90_PIN 9
+#define SG90_STARTUP_POSITION 0
+
+#define LCD_ADDRESS 0x3f
+#define LCD_COLUMNS 16
+#define LCD_ROWS 2
+
+#define RGB_LED_RED 49
+#define RGB_LED_GREEN 51
+#define RGB_LED_BLUE 53
+
+#define BUZZER_LED 48
+
+#define RELAY_1 23
+#define RELAY_2 25
+
+#define ESP32 Serial
+#define ESP32_BAUD_RATE 115200
+
+MPU9250_WE MPU9250 = MPU9250_WE(MPU9250_ADDRESS);
+
+BH1750 bh1750(BH1750_ADDRESS);
+
+BME280 bme280;
+
+Rdm6300 RDM6300_HS;
+Rdm6300 RDM6300_SS;
+
+TinyGPSPlus GPS;
+
+RTC_DS3231 DS3231;
+
+Servo SG90;
+
+LiquidCrystal_I2C LCD(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
+
+struct I2C_Status_Type {
+  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280;
+};
+I2C_Status_Type I2C_Status;
+
+struct Acceleration_Type {
+  float X, Y, Z, Resultant;
+};
+struct Gyro_Type {
+  float X, Y, Z;
+};
+struct Magneto_Type {
+  float X, Y, Z;
+};
+struct MPU9250_Readings_Type {
+  struct Acceleration_Type Acceleration;
+  struct Gyro_Type Gyro;
+  struct Magneto_Type Magneto;
+  float Temperature;
+};
+MPU9250_Readings_Type MPU9250_Readings;
+
+float Light;
+
+struct BME280_Readings_Type {
+  float Temperature, Humidity, Pressure, Altitude;
+};
+BME280_Readings_Type BME280_Readings;
+
+struct MQs_Readings_Type {
+  float MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135;
+};
+MQs_Readings_Type MQs_Readings;
+
+boolean BlackBody_Motion, Flame;
+
+struct NEO7M_Readings_Type {
+  unsigned int Satellites;
+  float Latitude, Longitude, Speed, Course, Altitude, HDOP;
+};
+NEO7M_Readings_Type NEO7M_Readings;
+
+unsigned int RDM6300_HS_Card, RDM6300_SS_Card;
+
+struct DS3231_OutPut_Type {
+  int UNIX_Time, Year, Month, Day, Week_Day, Hour, Minute, Second;
+  float Temperature;
+};
+DS3231_OutPut_Type DS3231_OutPut;
+
+const char *Compilation_Date_Time = __DATE__ " " __TIME__;
+
+String Scan_I2C(void) {
+  byte error, address;
+  unsigned int count = 0;
+  String result = "";
+
+  for (address = 0x01; address < 0x7f; address++) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0) {
+      result += "0x";
+      result += String(address, HEX);
+      result += " ";
+
+      count++;
+    } else if (error != 2) {
+      result += "Error ";
+      result += error;
+      result += " at address 0x";
+      result += String(address, HEX);
+      result += "\n";
+    }
+  }
+
+  if (count == 0) {
+    result += "No device";
+  }
+
+  return result;
 }
 
-void loop(void)
-{
-  JsonDocument Readings;
+void SetUp_MPU9250(void) {
+  if (MPU9250.init()) {
+    I2C_Status.MPU9250 = true;
+  } else {
+    I2C_Status.MPU9250 = false;
+  }
 
-  MQ_2_Value = analogRead(MQ_2);
-  MQ_3_Value = analogRead(MQ_3);
-  MQ_4_Value = analogRead(MQ_4);
-  MQ_5_Value = analogRead(MQ_5);
-  MQ_6_Value = analogRead(MQ_6);
-  MQ_7_Value = analogRead(MQ_7);
-  MQ_8_Value = analogRead(MQ_8);
-  MQ_9_Value = analogRead(MQ_9);
-  MQ_135_Value = analogRead(MQ_135);
+  if (MPU9250.initMagnetometer()) {
+    I2C_Status.MPU9250_Magnetometer = true;
+  } else {
+    I2C_Status.MPU9250_Magnetometer = false;
+  }
 
-  Readings["MQ_2"] = String(MQ_2_Value);
-  Readings["MQ_3"] = String(MQ_3_Value);
-  Readings["MQ_4"] = String(MQ_4_Value);
-  Readings["MQ_5"] = String(MQ_5_Value);
-  Readings["MQ_6"] = String(MQ_6_Value);
-  Readings["MQ_7"] = String(MQ_7_Value);
-  Readings["MQ_8"] = String(MQ_8_Value);
-  Readings["MQ_9"] = String(MQ_9_Value);
-  Readings["MQ_135"] = String(MQ_135_Value);
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer) {
+    delay(1000);
 
-  Readings["UpTime"] = String(millis());
+    MPU9250.autoOffsets();
 
-  serializeJson(Readings, Master_Board);
+    MPU9250.enableAccDLPF(true);
+    MPU9250.setAccDLPF(MPU9250_DLPF_6); /* Lowest Noise */
 
-  delay(100);
+    MPU9250.enableGyrDLPF();
+    MPU9250.setGyrDLPF(MPU9250_DLPF_6); /* Lowest Noise */
+
+    MPU9250.setAccRange(MPU6500_ACC_RANGE_16G); /* Highest */
+
+    MPU9250.setGyrRange(MPU9250_GYRO_RANGE_2000); /* Highest */
+
+    MPU9250.setMagOpMode(AK8963_CONT_MODE_100HZ); /* Highest */
+
+    MPU9250.setSampleRateDivider(0); /* Lowest */
+
+    delay(200);
+  }
+}
+
+void SetUp_BH1750(void) {
+  if (bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) /* Highest */
+  {
+    I2C_Status.BH1750 = true;
+  } else {
+    I2C_Status.BH1750 = false;
+  }
+}
+
+void SetUp_BME280(void) {
+  if (bme280.init()) {
+    I2C_Status.BME280 = true;
+  } else {
+    I2C_Status.BME280 = false;
+  }
+}
+
+void SetUp_RDM6300s(void) {
+  RDM6300_HS_UART.begin(RDM6300_BAUDRATE);
+  RDM6300_HS.begin(&RDM6300_HS_UART);
+
+  RDM6300_SS.begin(RDM6300_SS_PIN);
+}
+
+void SetUp_SG90(void) {
+  SG90.attach(SG90_PIN);
+  SG90.write(SG90_STARTUP_POSITION);
+
+  // SG90.detach();
+}
+
+void SetUp_DS3231(void) {
+  DS3231.begin();
+
+  if (DS3231.lostPower()) {
+    DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+}
+
+void SetUp_BuiltIn_LED(void) {
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+void SetUp_Buzzer_LED(void) {
+  pinMode(BUZZER_LED, OUTPUT);
+  digitalWrite(BUZZER_LED, LOW);
+}
+
+void SetUp_RGB_LED(void) {
+  pinMode(RGB_LED_RED, OUTPUT);
+  pinMode(RGB_LED_GREEN, OUTPUT);
+  pinMode(RGB_LED_BLUE, OUTPUT);
+
+  digitalWrite(RGB_LED_RED, LOW);
+  digitalWrite(RGB_LED_GREEN, LOW);
+  digitalWrite(RGB_LED_BLUE, LOW);
+}
+
+void SetUp_LCD(void) {
+  LCD.init();
+  LCD.clear();
+  LCD.noBlink();
+  LCD.noCursor();
+  LCD.backlight();
+
+  LCD.leftToRight();
+  LCD.setCursor(3, 0);
+  LCD.print("Bitscoper");
+  LCD.setCursor(6, 1);
+  LCD.print("IoT");
+}
+
+void SetUp_Relays() {
+  pinMode(RELAY_1, OUTPUT);
+  digitalWrite(RELAY_1, HIGH);
+
+  pinMode(RELAY_2, OUTPUT);
+  digitalWrite(RELAY_2, HIGH);
+}
+
+void setup(void) {
+  ESP32.begin(ESP32_BAUD_RATE);
+
+  Wire.begin();
+  ESP32.println(Scan_I2C());
+
+  SetUp_MPU9250();
+
+  SetUp_BH1750();
+
+  SetUp_BME280();
+
+  pinMode(RCWL0516, INPUT);
+
+  pinMode(FLAME_SENSOR, INPUT);
+
+  SetUp_RDM6300s();
+
+  NEO7M.begin(NEO7M_BAUD_RATE);
+
+  SetUp_DS3231();
+
+  SetUp_SG90();
+
+  SetUp_BuiltIn_LED();
+
+  SetUp_Buzzer_LED();
+
+  SetUp_RGB_LED();
+
+  SetUp_LCD();
+
+  SetUp_Relays();
+}
+
+void Read_MPU9250(void) {
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer) {
+
+    xyzFloat acceleration = MPU9250.getGValues();
+    xyzFloat gyro = MPU9250.getGyrValues();
+    xyzFloat magneto = MPU9250.getMagValues();
+    MPU9250_Readings.Acceleration.Resultant =
+        MPU9250.getResultantG(acceleration);
+
+    MPU9250_Readings.Acceleration.X = acceleration.x;
+    MPU9250_Readings.Acceleration.Y = acceleration.y;
+    MPU9250_Readings.Acceleration.Z = acceleration.z;
+
+    MPU9250_Readings.Gyro.X = gyro.x;
+    MPU9250_Readings.Gyro.Y = gyro.y;
+    MPU9250_Readings.Gyro.Z = gyro.z;
+
+    MPU9250_Readings.Magneto.X = magneto.x;
+    MPU9250_Readings.Magneto.Y = magneto.y;
+    MPU9250_Readings.Magneto.Z = magneto.z;
+
+    MPU9250_Readings.Temperature = MPU9250.getTemperature();
+  } else {
+    MPU9250_Readings.Acceleration.X = 0;
+    MPU9250_Readings.Acceleration.Y = 0;
+    MPU9250_Readings.Acceleration.Z = 0;
+    MPU9250_Readings.Acceleration.Resultant = 0;
+
+    MPU9250_Readings.Gyro.X = 0;
+    MPU9250_Readings.Gyro.Y = 0;
+    MPU9250_Readings.Gyro.Z = 0;
+
+    MPU9250_Readings.Magneto.X = 0;
+    MPU9250_Readings.Magneto.Y = 0;
+    MPU9250_Readings.Magneto.Z = 0;
+
+    MPU9250_Readings.Temperature = 0;
+  }
+}
+
+void Read_BH1750(void) {
+  if (I2C_Status.BH1750 && bh1750.measurementReady()) {
+    Light = bh1750.readLightLevel();
+  } else {
+    Light = 0;
+  }
+}
+
+void Read_BME280(void) {
+  if (I2C_Status.BME280) {
+    BME280_Readings.Temperature = bme280.getTemperature();
+    BME280_Readings.Humidity = bme280.getHumidity();
+    BME280_Readings.Pressure = bme280.getPressure();
+    BME280_Readings.Altitude = bme280.calcAltitude(BME280_Readings.Pressure);
+  } else {
+    BME280_Readings.Temperature = 0;
+    BME280_Readings.Humidity = 0;
+    BME280_Readings.Pressure = 0;
+    BME280_Readings.Altitude = 0;
+  }
+}
+
+void Read_MQ_Sensors(void) {
+  MQs_Readings.MQ2 = analogRead(MQ2);
+  MQs_Readings.MQ3 = analogRead(MQ3);
+  MQs_Readings.MQ4 = analogRead(MQ4);
+  MQs_Readings.MQ5 = analogRead(MQ5);
+  MQs_Readings.MQ6 = analogRead(MQ6);
+  MQs_Readings.MQ7 = analogRead(MQ7);
+  MQs_Readings.MQ8 = analogRead(MQ8);
+  MQs_Readings.MQ9 = analogRead(MQ9);
+  MQs_Readings.MQ135 = analogRead(MQ135);
+}
+
+void Read_NEO7M(void) {
+  while (NEO7M.available()) {
+    GPS.encode(NEO7M.read());
+  }
+
+  NEO7M_Readings.Satellites = GPS.satellites.value();
+  NEO7M_Readings.Latitude = GPS.location.lat();
+  NEO7M_Readings.Longitude = GPS.location.lng();
+  NEO7M_Readings.Speed = GPS.speed.kmph();
+  NEO7M_Readings.Course = GPS.course.deg();
+  NEO7M_Readings.Altitude = GPS.altitude.meters();
+  NEO7M_Readings.HDOP = GPS.hdop.value();
+}
+
+void Read_RDM6300s(void) {
+  RDM6300_HS_Card = RDM6300_HS.get_tag_id();
+  RDM6300_SS_Card = RDM6300_SS.get_tag_id();
+}
+
+void Read_DS3231(void) {
+  DateTime now = DS3231.now();
+
+  DS3231_OutPut.UNIX_Time = now.unixtime();
+
+  DS3231_OutPut.Year = now.year();
+  DS3231_OutPut.Month = now.month();
+  DS3231_OutPut.Day = now.day();
+  DS3231_OutPut.Week_Day = now.dayOfTheWeek();
+
+  DS3231_OutPut.Hour = now.hour();
+  DS3231_OutPut.Minute = now.minute();
+  DS3231_OutPut.Second = now.second();
+
+  DS3231_OutPut.Temperature = DS3231.getTemperature();
+}
+
+void Send_JSON(void) {
+  JsonDocument Readings_JSON;
+
+  JsonDocument Acceleration_JSON;
+  Acceleration_JSON["X"] = String(MPU9250_Readings.Acceleration.X);
+  Acceleration_JSON["Y"] = String(MPU9250_Readings.Acceleration.Y);
+  Acceleration_JSON["Z"] = String(MPU9250_Readings.Acceleration.Z);
+  Acceleration_JSON["Resultant"] =
+      String(MPU9250_Readings.Acceleration.Resultant);
+
+  JsonDocument Gyro_JSON;
+  Gyro_JSON["X"] = String(MPU9250_Readings.Gyro.X);
+  Gyro_JSON["Y"] = String(MPU9250_Readings.Gyro.Y);
+  Gyro_JSON["Z"] = String(MPU9250_Readings.Gyro.Z);
+
+  JsonDocument Magneto_JSON;
+  Magneto_JSON["X"] = String(MPU9250_Readings.Magneto.X);
+  Magneto_JSON["Y"] = String(MPU9250_Readings.Magneto.Y);
+  Magneto_JSON["Z"] = String(MPU9250_Readings.Magneto.Z);
+
+  JsonDocument MPU9250_JSON;
+  MPU9250_JSON["Acceleration"] = Acceleration_JSON;
+  MPU9250_JSON["Gyro"] = Gyro_JSON;
+  MPU9250_JSON["Magneto"] = Magneto_JSON;
+  MPU9250_JSON["Temperature"] = String(MPU9250_Readings.Temperature);
+
+  Readings_JSON["MPU9250"] = MPU9250_JSON;
+
+  Readings_JSON["Light"] = String(Light);
+
+  JsonDocument BME280_JSON;
+  BME280_JSON["Temperature"] = String(BME280_Readings.Temperature);
+  BME280_JSON["Humidity"] = String(BME280_Readings.Humidity);
+  BME280_JSON["Pressure"] = String(BME280_Readings.Pressure);
+  BME280_JSON["Altitude"] = String(BME280_Readings.Altitude);
+  Readings_JSON["BME280"] = BME280_JSON;
+
+  Readings_JSON["MQ2"] = String(MQs_Readings.MQ2);
+  Readings_JSON["MQ3"] = String(MQs_Readings.MQ3);
+  Readings_JSON["MQ4"] = String(MQs_Readings.MQ4);
+  Readings_JSON["MQ5"] = String(MQs_Readings.MQ5);
+  Readings_JSON["MQ6"] = String(MQs_Readings.MQ6);
+  Readings_JSON["MQ7"] = String(MQs_Readings.MQ7);
+  Readings_JSON["MQ8"] = String(MQs_Readings.MQ8);
+  Readings_JSON["MQ9"] = String(MQs_Readings.MQ9);
+  Readings_JSON["MQ135"] = String(MQs_Readings.MQ135);
+
+  Readings_JSON["BlackBody_Motion"] = String(BlackBody_Motion);
+
+  Readings_JSON["Flame"] = String(Flame);
+
+  JsonDocument RDM6300s_JSON;
+  RDM6300s_JSON["HS"] = String(RDM6300_HS_Card);
+  RDM6300s_JSON["SS"] = String(RDM6300_SS_Card);
+  Readings_JSON["RDM6300s"] = RDM6300s_JSON;
+
+  JsonDocument NEO7M_JSON;
+  NEO7M_JSON["Satellites"] = String(NEO7M_Readings.Satellites);
+  NEO7M_JSON["Latitude"] = String(NEO7M_Readings.Latitude);
+  NEO7M_JSON["Longitude"] = String(NEO7M_Readings.Longitude);
+  NEO7M_JSON["Speed"] = String(NEO7M_Readings.Speed);
+  NEO7M_JSON["Course"] = String(NEO7M_Readings.Course);
+  NEO7M_JSON["Altitude"] = String(NEO7M_Readings.Altitude);
+  NEO7M_JSON["HDOP"] = String(NEO7M_Readings.HDOP);
+  Readings_JSON["NEO7M"] = NEO7M_JSON;
+
+  JsonDocument DS3231_JSON;
+  DS3231_JSON["UNIX_Time"] = String(DS3231_OutPut.UNIX_Time);
+  DS3231_JSON["Year"] = String(DS3231_OutPut.Year);
+  DS3231_JSON["Month"] = String(DS3231_OutPut.Month);
+  DS3231_JSON["Day"] = String(DS3231_OutPut.Day);
+  DS3231_JSON["Week_Day"] = String(DS3231_OutPut.Week_Day);
+  DS3231_JSON["Hour"] = String(DS3231_OutPut.Hour);
+  DS3231_JSON["Minute"] = String(DS3231_OutPut.Minute);
+  DS3231_JSON["Second"] = String(DS3231_OutPut.Second);
+  DS3231_JSON["Temperature"] = String(DS3231_OutPut.Temperature);
+  Readings_JSON["DS3231"] = DS3231_JSON;
+
+  Readings_JSON["UpTime"] = String(millis());
+
+  ESP32.println();
+  serializeJson(Readings_JSON, ESP32);
+  ESP32.flush();
+}
+
+void Control_RGB_LED(boolean State) {
+  if (State) {
+    if (RDM6300_HS_Card != 0 && RDM6300_SS_Card != 0) {
+      digitalWrite(RGB_LED_RED, LOW);
+      digitalWrite(RGB_LED_GREEN, HIGH);
+      digitalWrite(RGB_LED_BLUE, LOW);
+    } else if (RDM6300_HS_Card != 0 || RDM6300_SS_Card != 0) {
+      digitalWrite(RGB_LED_RED, LOW);
+      digitalWrite(RGB_LED_GREEN, LOW);
+      digitalWrite(RGB_LED_BLUE, HIGH);
+    } else if (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0) {
+      digitalWrite(RGB_LED_RED, HIGH);
+      digitalWrite(RGB_LED_GREEN, LOW);
+      digitalWrite(RGB_LED_BLUE, LOW);
+    }
+  } else {
+    digitalWrite(RGB_LED_RED, LOW);
+    digitalWrite(RGB_LED_GREEN, LOW);
+    digitalWrite(RGB_LED_BLUE, LOW);
+  }
+}
+
+void Receive_JSON(void) {
+  while (ESP32.available()) {
+    JsonDocument ESP32_JSON;
+
+    DeserializationError ESP32_JSON_Error = deserializeJson(ESP32_JSON, ESP32);
+
+    if (ESP32_JSON_Error == DeserializationError::Ok) {
+      digitalWrite(LED_BUILTIN, HIGH);
+
+      if (ESP32_JSON.containsKey("Authenticate")) {
+        unsigned int Number = ESP32_JSON["Authenticate"].as<unsigned int>();
+
+        SG90.write(90);
+
+        if (Number == 1) {
+          do {
+            Read_RDM6300s();
+            Control_RGB_LED(true);
+          } while (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0);
+        } else if (Number == 2) {
+          do {
+            Read_RDM6300s();
+            Control_RGB_LED(true);
+          } while (RDM6300_HS_Card == 0 || RDM6300_SS_Card == 0);
+        }
+
+        SG90.write(0);
+
+        Serial.println();
+        Serial.println(RDM6300_HS_Card);
+        Serial.println(RDM6300_SS_Card);
+
+        delay(192);
+        Control_RGB_LED(false);
+      }
+
+      if (ESP32_JSON.containsKey("SG90")) {
+        unsigned int SG90_Position = ESP32_JSON["SG90"].as<unsigned int>();
+
+        SG90.write(SG90_Position);
+      }
+
+      if (ESP32_JSON.containsKey("Relay_1")) {
+        String Relay_1_State = ESP32_JSON["Relay_1"];
+
+        if (Relay_1_State == "On") {
+          digitalWrite(RELAY_1, LOW);
+        } else if (Relay_1_State == "Off") {
+          digitalWrite(RELAY_1, HIGH);
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Relay_2")) {
+        String Relay_2_State = ESP32_JSON["Relay_2"];
+
+        if (Relay_2_State == "On") {
+          digitalWrite(RELAY_2, LOW);
+        } else if (Relay_2_State == "Off") {
+          digitalWrite(RELAY_2, HIGH);
+        }
+      }
+
+      digitalWrite(LED_BUILTIN, LOW);
+    }
+  }
+}
+
+void loop(void) {
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  Read_MPU9250();
+
+  Read_BH1750();
+
+  Read_BME280();
+
+  Read_MQ_Sensors();
+
+  BlackBody_Motion = digitalRead(RCWL0516);
+
+  Flame = !digitalRead(FLAME_SENSOR);
+
+  Read_NEO7M();
+
+  Read_RDM6300s();
+
+  Read_DS3231();
+
+  digitalWrite(LED_BUILTIN, LOW);
+
+  Send_JSON();
+
+  while (!ESP32.available()) {
+    delay(10);
+  }
+
+  Receive_JSON();
 }
