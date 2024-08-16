@@ -3,10 +3,12 @@
 /*
 Board: "Arduino Mega or Mega 2560"
 Processor: "ATmega2560 (Mega 2560)"
+Programmer: "AVR ISP"
 */
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
 
 #include <MPU9250_WE.h>
 
@@ -15,14 +17,16 @@ Processor: "ATmega2560 (Mega 2560)"
 #include <Seeed_BME280.h>
 
 #include <rdm6300.h>
+#include <MFRC522.h>
 
 #include <TinyGPSPlus.h>
 
 #include <RTClib.h>
 
+#include <Stepper.h>
 #include <Servo.h>
 
-#include <LiquidCrystal_I2C.h>
+#include <Adafruit_SSD1306.h>
 
 #include <ArduinoJson.h>
 
@@ -39,12 +43,14 @@ Processor: "ATmega2560 (Mega 2560)"
 #define MQ9 A7
 #define MQ135 A8
 
-#define RCWL0516 23
+#define RCWL0516 24
 
 #define FLAME_SENSOR 22
 
-#define RDM6300_HS_UART Serial3
-#define RDM6300_SS_PIN 10
+#define RDM6300_UART Serial3
+
+#define RC522_SS 53
+#define RC522_RESET 5
 
 #define NEO7M Serial2
 #define NEO7M_BAUD_RATE 9600
@@ -52,15 +58,16 @@ Processor: "ATmega2560 (Mega 2560)"
 #define SG90_PIN 9
 #define SG90_STARTUP_POSITION 0
 
-#define LCD_ADDRESS 0x3f
-#define LCD_COLUMNS 16
-#define LCD_ROWS 2
+#define SSD1306_ADDRESS 0x3C
+#define SSD1306_RESET -1
+#define SSD1306_WIDTH 128
+#define SSD1306_HEIGHT 64
 
-#define RGB_LED_RED 49
-#define RGB_LED_GREEN 51
-#define RGB_LED_BLUE 53
+#define RGB_LED_RED 30
+#define RGB_LED_GREEN 32
+#define RGB_LED_BLUE 34
 
-#define BUZZER_LED 48
+#define BUZZER 11
 
 #define RELAY_1 23
 #define RELAY_2 25
@@ -74,8 +81,10 @@ BH1750 bh1750(BH1750_ADDRESS);
 
 BME280 bme280;
 
-Rdm6300 RDM6300_HS;
-Rdm6300 RDM6300_SS;
+Rdm6300 RDM6300;
+
+MFRC522 RC522(RC522_SS, RC522_RESET);
+MFRC522::MIFARE_Key RC522_Key;
 
 TinyGPSPlus GPS;
 
@@ -83,10 +92,10 @@ RTC_DS3231 DS3231;
 
 Servo SG90;
 
-LiquidCrystal_I2C LCD(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
+Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
 
 struct I2C_Status_Type {
-  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280;
+  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280, SSD1306;
 };
 I2C_Status_Type I2C_Status;
 
@@ -127,7 +136,7 @@ struct NEO7M_Readings_Type {
 };
 NEO7M_Readings_Type NEO7M_Readings;
 
-unsigned int RDM6300_HS_Card, RDM6300_SS_Card;
+unsigned int RDM6300_Reading;
 
 struct DS3231_OutPut_Type {
   int UNIX_Time, Year, Month, Day, Week_Day, Hour, Minute, Second;
@@ -136,6 +145,11 @@ struct DS3231_OutPut_Type {
 DS3231_OutPut_Type DS3231_OutPut;
 
 const char *Compilation_Date_Time = __DATE__ " " __TIME__;
+
+void SetUp_Buzzer(void) {
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(BUZZER, LOW);
+}
 
 String Scan_I2C(void) {
   byte error, address;
@@ -173,12 +187,14 @@ void SetUp_MPU9250(void) {
     I2C_Status.MPU9250 = true;
   } else {
     I2C_Status.MPU9250 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 
   if (MPU9250.initMagnetometer()) {
     I2C_Status.MPU9250_Magnetometer = true;
   } else {
     I2C_Status.MPU9250_Magnetometer = false;
+    digitalWrite(BUZZER, HIGH);
   }
 
   if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer) {
@@ -210,6 +226,7 @@ void SetUp_BH1750(void) {
     I2C_Status.BH1750 = true;
   } else {
     I2C_Status.BH1750 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 }
 
@@ -218,14 +235,21 @@ void SetUp_BME280(void) {
     I2C_Status.BME280 = true;
   } else {
     I2C_Status.BME280 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 }
 
-void SetUp_RDM6300s(void) {
-  RDM6300_HS_UART.begin(RDM6300_BAUDRATE);
-  RDM6300_HS.begin(&RDM6300_HS_UART);
+void SetUp_RDM6300(void) {
+  RDM6300_UART.begin(RDM6300_BAUDRATE);
+  RDM6300.begin(&RDM6300_UART);
+}
 
-  RDM6300_SS.begin(RDM6300_SS_PIN);
+void SetUp_RC522(void) {
+  RC522.PCD_Init();
+
+  for (byte i = 0; i < 6; i++) {
+    RC522_Key.keyByte[i] = 0xFF;
+  }
 }
 
 void SetUp_SG90(void) {
@@ -248,11 +272,6 @@ void SetUp_BuiltIn_LED(void) {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-void SetUp_Buzzer_LED(void) {
-  pinMode(BUZZER_LED, OUTPUT);
-  digitalWrite(BUZZER_LED, LOW);
-}
-
 void SetUp_RGB_LED(void) {
   pinMode(RGB_LED_RED, OUTPUT);
   pinMode(RGB_LED_GREEN, OUTPUT);
@@ -263,18 +282,19 @@ void SetUp_RGB_LED(void) {
   digitalWrite(RGB_LED_BLUE, LOW);
 }
 
-void SetUp_LCD(void) {
-  LCD.init();
-  LCD.clear();
-  LCD.noBlink();
-  LCD.noCursor();
-  LCD.backlight();
+void SetUp_SSD1306(void) {
+  if (!SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS)) {
+    I2C_Status.SSD1306 = false;
+    digitalWrite(BUZZER, HIGH);
+  }
 
-  LCD.leftToRight();
-  LCD.setCursor(3, 0);
-  LCD.print("Bitscoper");
-  LCD.setCursor(6, 1);
-  LCD.print("IoT");
+  SSD1306.clearDisplay();
+
+  SSD1306.setTextSize(1);
+  SSD1306.setTextColor(SSD1306_WHITE);
+  SSD1306.setCursor(25, 0);
+  SSD1306.println(F("Bitscoper IoT"));
+  SSD1306.display();
 }
 
 void SetUp_Relays() {
@@ -286,10 +306,15 @@ void SetUp_Relays() {
 }
 
 void setup(void) {
+  SetUp_Buzzer();
+
   ESP32.begin(ESP32_BAUD_RATE);
 
   Wire.begin();
+  ESP32.println();
   ESP32.println(Scan_I2C());
+
+  SPI.begin();
 
   SetUp_MPU9250();
 
@@ -301,7 +326,9 @@ void setup(void) {
 
   pinMode(FLAME_SENSOR, INPUT);
 
-  SetUp_RDM6300s();
+  SetUp_RDM6300();
+
+  SetUp_RC522();
 
   NEO7M.begin(NEO7M_BAUD_RATE);
 
@@ -311,11 +338,9 @@ void setup(void) {
 
   SetUp_BuiltIn_LED();
 
-  SetUp_Buzzer_LED();
-
   SetUp_RGB_LED();
 
-  SetUp_LCD();
+  SetUp_SSD1306();
 
   SetUp_Relays();
 }
@@ -327,7 +352,7 @@ void Read_MPU9250(void) {
     xyzFloat gyro = MPU9250.getGyrValues();
     xyzFloat magneto = MPU9250.getMagValues();
     MPU9250_Readings.Acceleration.Resultant =
-        MPU9250.getResultantG(acceleration);
+      MPU9250.getResultantG(acceleration);
 
     MPU9250_Readings.Acceleration.X = acceleration.x;
     MPU9250_Readings.Acceleration.Y = acceleration.y;
@@ -408,9 +433,38 @@ void Read_NEO7M(void) {
   NEO7M_Readings.HDOP = GPS.hdop.value();
 }
 
-void Read_RDM6300s(void) {
-  RDM6300_HS_Card = RDM6300_HS.get_tag_id();
-  RDM6300_SS_Card = RDM6300_SS.get_tag_id();
+struct RC522_Reading_Type {
+  String PICC_Type;
+  boolean MIFARE_Classic_Validity;
+  unsigned long UID;
+};
+RC522_Reading_Type RC522_Reading;
+
+void Read_RC522(void) {
+  RC522.PICC_IsNewCardPresent(); /* Needed to Read */
+
+  if (RC522.PICC_ReadCardSerial()) {
+    MFRC522::PICC_Type PICC_Type = RC522.PICC_GetType(RC522.uid.sak);
+    RC522_Reading.PICC_Type = RC522.PICC_GetTypeName(PICC_Type);
+
+    if (PICC_Type != MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type != MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type != MFRC522::PICC_TYPE_MIFARE_4K) {
+      RC522_Reading.MIFARE_Classic_Validity = false;
+
+      RC522_Reading.UID = 0;
+    } else {
+      RC522_Reading.MIFARE_Classic_Validity = true;
+
+      RC522_Reading.UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24)
+                          | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16)
+                          | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8)
+                          | static_cast<unsigned long>(RC522.uid.uidByte[3]);
+
+      RC522.PICC_HaltA();
+      RC522.PCD_StopCrypto1();
+    }
+  } else {
+    RC522_Reading.UID = 0;
+  }
 }
 
 void Read_DS3231(void) {
@@ -434,108 +488,111 @@ void Send_JSON(void) {
   JsonDocument Readings_JSON;
 
   JsonDocument Acceleration_JSON;
-  Acceleration_JSON["X"] = String(MPU9250_Readings.Acceleration.X);
-  Acceleration_JSON["Y"] = String(MPU9250_Readings.Acceleration.Y);
-  Acceleration_JSON["Z"] = String(MPU9250_Readings.Acceleration.Z);
+  Acceleration_JSON["X"] = MPU9250_Readings.Acceleration.X;
+  Acceleration_JSON["Y"] = MPU9250_Readings.Acceleration.Y;
+  Acceleration_JSON["Z"] = MPU9250_Readings.Acceleration.Z;
   Acceleration_JSON["Resultant"] =
-      String(MPU9250_Readings.Acceleration.Resultant);
+    MPU9250_Readings.Acceleration.Resultant;
 
   JsonDocument Gyro_JSON;
-  Gyro_JSON["X"] = String(MPU9250_Readings.Gyro.X);
-  Gyro_JSON["Y"] = String(MPU9250_Readings.Gyro.Y);
-  Gyro_JSON["Z"] = String(MPU9250_Readings.Gyro.Z);
+  Gyro_JSON["X"] = MPU9250_Readings.Gyro.X;
+  Gyro_JSON["Y"] = MPU9250_Readings.Gyro.Y;
+  Gyro_JSON["Z"] = MPU9250_Readings.Gyro.Z;
 
   JsonDocument Magneto_JSON;
-  Magneto_JSON["X"] = String(MPU9250_Readings.Magneto.X);
-  Magneto_JSON["Y"] = String(MPU9250_Readings.Magneto.Y);
-  Magneto_JSON["Z"] = String(MPU9250_Readings.Magneto.Z);
+  Magneto_JSON["X"] = MPU9250_Readings.Magneto.X;
+  Magneto_JSON["Y"] = MPU9250_Readings.Magneto.Y;
+  Magneto_JSON["Z"] = MPU9250_Readings.Magneto.Z;
 
   JsonDocument MPU9250_JSON;
   MPU9250_JSON["Acceleration"] = Acceleration_JSON;
   MPU9250_JSON["Gyro"] = Gyro_JSON;
   MPU9250_JSON["Magneto"] = Magneto_JSON;
-  MPU9250_JSON["Temperature"] = String(MPU9250_Readings.Temperature);
+  MPU9250_JSON["Temperature"] = MPU9250_Readings.Temperature;
 
   Readings_JSON["MPU9250"] = MPU9250_JSON;
 
-  Readings_JSON["Light"] = String(Light);
+  Readings_JSON["BH1750"] = Light;
 
   JsonDocument BME280_JSON;
-  BME280_JSON["Temperature"] = String(BME280_Readings.Temperature);
-  BME280_JSON["Humidity"] = String(BME280_Readings.Humidity);
-  BME280_JSON["Pressure"] = String(BME280_Readings.Pressure);
-  BME280_JSON["Altitude"] = String(BME280_Readings.Altitude);
+  BME280_JSON["Temperature"] = BME280_Readings.Temperature;
+  BME280_JSON["Humidity"] = BME280_Readings.Humidity;
+  BME280_JSON["Pressure"] = BME280_Readings.Pressure;
+  BME280_JSON["Altitude"] = BME280_Readings.Altitude;
   Readings_JSON["BME280"] = BME280_JSON;
 
-  Readings_JSON["MQ2"] = String(MQs_Readings.MQ2);
-  Readings_JSON["MQ3"] = String(MQs_Readings.MQ3);
-  Readings_JSON["MQ4"] = String(MQs_Readings.MQ4);
-  Readings_JSON["MQ5"] = String(MQs_Readings.MQ5);
-  Readings_JSON["MQ6"] = String(MQs_Readings.MQ6);
-  Readings_JSON["MQ7"] = String(MQs_Readings.MQ7);
-  Readings_JSON["MQ8"] = String(MQs_Readings.MQ8);
-  Readings_JSON["MQ9"] = String(MQs_Readings.MQ9);
-  Readings_JSON["MQ135"] = String(MQs_Readings.MQ135);
+  Readings_JSON["MQ2"] = MQs_Readings.MQ2;
+  Readings_JSON["MQ3"] = MQs_Readings.MQ3;
+  Readings_JSON["MQ4"] = MQs_Readings.MQ4;
+  Readings_JSON["MQ5"] = MQs_Readings.MQ5;
+  Readings_JSON["MQ6"] = MQs_Readings.MQ6;
+  Readings_JSON["MQ7"] = MQs_Readings.MQ7;
+  Readings_JSON["MQ8"] = MQs_Readings.MQ8;
+  Readings_JSON["MQ9"] = MQs_Readings.MQ9;
+  Readings_JSON["MQ135"] = MQs_Readings.MQ135;
 
-  Readings_JSON["BlackBody_Motion"] = String(BlackBody_Motion);
+  Readings_JSON["RCWL0516"] = BlackBody_Motion;
 
-  Readings_JSON["Flame"] = String(Flame);
+  Readings_JSON["Flame"] = Flame;
 
-  JsonDocument RDM6300s_JSON;
-  RDM6300s_JSON["HS"] = String(RDM6300_HS_Card);
-  RDM6300s_JSON["SS"] = String(RDM6300_SS_Card);
-  Readings_JSON["RDM6300s"] = RDM6300s_JSON;
+  Readings_JSON["RDM6300"] = RDM6300_Reading;
+
+  JsonDocument RC522_JSON;
+  // RC522_JSON["PICC_Type"] = RC522_Reading.PICC_Type;
+  // RC522_JSON["MIFARE_Classic_Validity"] = RC522_Reading.MIFARE_Classic_Validity;
+  RC522_JSON["UID"] = RC522_Reading.UID;
+  Readings_JSON["RC522"] = RC522_JSON;
 
   JsonDocument NEO7M_JSON;
-  NEO7M_JSON["Satellites"] = String(NEO7M_Readings.Satellites);
-  NEO7M_JSON["Latitude"] = String(NEO7M_Readings.Latitude);
-  NEO7M_JSON["Longitude"] = String(NEO7M_Readings.Longitude);
-  NEO7M_JSON["Speed"] = String(NEO7M_Readings.Speed);
-  NEO7M_JSON["Course"] = String(NEO7M_Readings.Course);
-  NEO7M_JSON["Altitude"] = String(NEO7M_Readings.Altitude);
-  NEO7M_JSON["HDOP"] = String(NEO7M_Readings.HDOP);
+  NEO7M_JSON["Satellites"] = NEO7M_Readings.Satellites;
+  NEO7M_JSON["Latitude"] = NEO7M_Readings.Latitude;
+  NEO7M_JSON["Longitude"] = NEO7M_Readings.Longitude;
+  NEO7M_JSON["Speed"] = NEO7M_Readings.Speed;
+  NEO7M_JSON["Course"] = NEO7M_Readings.Course;
+  NEO7M_JSON["Altitude"] = NEO7M_Readings.Altitude;
+  NEO7M_JSON["HDOP"] = NEO7M_Readings.HDOP;
   Readings_JSON["NEO7M"] = NEO7M_JSON;
 
   JsonDocument DS3231_JSON;
-  DS3231_JSON["UNIX_Time"] = String(DS3231_OutPut.UNIX_Time);
-  DS3231_JSON["Year"] = String(DS3231_OutPut.Year);
-  DS3231_JSON["Month"] = String(DS3231_OutPut.Month);
-  DS3231_JSON["Day"] = String(DS3231_OutPut.Day);
-  DS3231_JSON["Week_Day"] = String(DS3231_OutPut.Week_Day);
-  DS3231_JSON["Hour"] = String(DS3231_OutPut.Hour);
-  DS3231_JSON["Minute"] = String(DS3231_OutPut.Minute);
-  DS3231_JSON["Second"] = String(DS3231_OutPut.Second);
-  DS3231_JSON["Temperature"] = String(DS3231_OutPut.Temperature);
+  DS3231_JSON["UNIX_Time"] = DS3231_OutPut.UNIX_Time;
+  DS3231_JSON["Year"] = DS3231_OutPut.Year;
+  DS3231_JSON["Month"] = DS3231_OutPut.Month;
+  DS3231_JSON["Day"] = DS3231_OutPut.Day;
+  DS3231_JSON["Week_Day"] = DS3231_OutPut.Week_Day;
+  DS3231_JSON["Hour"] = DS3231_OutPut.Hour;
+  DS3231_JSON["Minute"] = DS3231_OutPut.Minute;
+  DS3231_JSON["Second"] = DS3231_OutPut.Second;
+  DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
   Readings_JSON["DS3231"] = DS3231_JSON;
 
-  Readings_JSON["UpTime"] = String(millis());
+  Readings_JSON["UpTime"] = millis();
 
   ESP32.println();
   serializeJson(Readings_JSON, ESP32);
   ESP32.flush();
 }
 
-void Control_RGB_LED(boolean State) {
-  if (State) {
-    if (RDM6300_HS_Card != 0 && RDM6300_SS_Card != 0) {
-      digitalWrite(RGB_LED_RED, LOW);
-      digitalWrite(RGB_LED_GREEN, HIGH);
-      digitalWrite(RGB_LED_BLUE, LOW);
-    } else if (RDM6300_HS_Card != 0 || RDM6300_SS_Card != 0) {
-      digitalWrite(RGB_LED_RED, LOW);
-      digitalWrite(RGB_LED_GREEN, LOW);
-      digitalWrite(RGB_LED_BLUE, HIGH);
-    } else if (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0) {
-      digitalWrite(RGB_LED_RED, HIGH);
-      digitalWrite(RGB_LED_GREEN, LOW);
-      digitalWrite(RGB_LED_BLUE, LOW);
-    }
-  } else {
-    digitalWrite(RGB_LED_RED, LOW);
-    digitalWrite(RGB_LED_GREEN, LOW);
-    digitalWrite(RGB_LED_BLUE, LOW);
-  }
-}
+//void Control_RGB_LED(boolean State) {
+//  if (State) {
+//    if (RDM6300_HS_Card != 0 && RDM6300_SS_Card != 0) {
+//      digitalWrite(RGB_LED_RED, LOW);
+//      digitalWrite(RGB_LED_GREEN, HIGH);
+//      digitalWrite(RGB_LED_BLUE, LOW);
+//    } else if (RDM6300_HS_Card != 0 || RDM6300_SS_Card != 0) {
+//      digitalWrite(RGB_LED_RED, LOW);
+//      digitalWrite(RGB_LED_GREEN, LOW);
+//      digitalWrite(RGB_LED_BLUE, HIGH);
+//    } else if (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0) {
+//      digitalWrite(RGB_LED_RED, HIGH);
+//      digitalWrite(RGB_LED_GREEN, LOW);
+//      digitalWrite(RGB_LED_BLUE, LOW);
+//    }
+//  } else {
+//    digitalWrite(RGB_LED_RED, LOW);
+//    digitalWrite(RGB_LED_GREEN, LOW);
+//    digitalWrite(RGB_LED_BLUE, LOW);
+//  }
+//}
 
 void Receive_JSON(void) {
   while (ESP32.available()) {
@@ -549,28 +606,23 @@ void Receive_JSON(void) {
       if (ESP32_JSON.containsKey("Authenticate")) {
         unsigned int Number = ESP32_JSON["Authenticate"].as<unsigned int>();
 
-        SG90.write(90);
-
         if (Number == 1) {
-          do {
-            Read_RDM6300s();
-            Control_RGB_LED(true);
-          } while (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0);
+          //          do {
+          //            Read_RDM6300s();
+          //            Control_RGB_LED(true);
+          //          } while (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0);
         } else if (Number == 2) {
-          do {
-            Read_RDM6300s();
-            Control_RGB_LED(true);
-          } while (RDM6300_HS_Card == 0 || RDM6300_SS_Card == 0);
+          //          do {
+          //            Read_RDM6300s();
+          //            Control_RGB_LED(true);
+          //          } while (RDM6300_HS_Card == 0 || RDM6300_SS_Card == 0);
         }
 
-        SG90.write(0);
-
         Serial.println();
-        Serial.println(RDM6300_HS_Card);
-        Serial.println(RDM6300_SS_Card);
+        Serial.println(RDM6300_Reading);
 
-        delay(192);
-        Control_RGB_LED(false);
+        //        delay(100);
+        //        Control_RGB_LED(false);
       }
 
       if (ESP32_JSON.containsKey("SG90")) {
@@ -621,7 +673,9 @@ void loop(void) {
 
   Read_NEO7M();
 
-  Read_RDM6300s();
+  RDM6300_Reading = RDM6300.get_tag_id();
+
+  Read_RC522();
 
   Read_DS3231();
 
