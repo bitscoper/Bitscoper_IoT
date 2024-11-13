@@ -55,17 +55,17 @@ Programmer: "AVR ISP"
 #define NEO7M Serial2
 #define NEO7M_BAUD_RATE 9600
 
-#define SG90_PIN 9
-#define SG90_STARTUP_POSITION 0
+#define SG90_PIN 7
+#define SG90_STARTUP_POSITION 180
 
 #define SSD1306_ADDRESS 0x3C
 #define SSD1306_RESET -1
 #define SSD1306_WIDTH 128
 #define SSD1306_HEIGHT 64
 
-#define RGB_LED_RED 30
-#define RGB_LED_GREEN 32
-#define RGB_LED_BLUE 34
+#define RGB_LED_RED 10
+#define RGB_LED_GREEN 9
+#define RGB_LED_BLUE 8
 
 #define BUZZER 11
 
@@ -94,21 +94,26 @@ Servo SG90;
 
 Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
 
-struct I2C_Status_Type {
+struct I2C_Status_Type
+{
   boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280, SSD1306;
 };
 I2C_Status_Type I2C_Status;
 
-struct Acceleration_Type {
+struct Acceleration_Type
+{
   float X, Y, Z, Resultant;
 };
-struct Gyro_Type {
+struct Gyro_Type
+{
   float X, Y, Z;
 };
-struct Magneto_Type {
+struct Magneto_Type
+{
   float X, Y, Z;
 };
-struct MPU9250_Readings_Type {
+struct MPU9250_Readings_Type
+{
   struct Acceleration_Type Acceleration;
   struct Gyro_Type Gyro;
   struct Magneto_Type Magneto;
@@ -118,27 +123,39 @@ MPU9250_Readings_Type MPU9250_Readings;
 
 float Light;
 
-struct BME280_Readings_Type {
+struct BME280_Readings_Type
+{
   float Temperature, Humidity, Pressure, Altitude;
 };
 BME280_Readings_Type BME280_Readings;
 
-struct MQs_Readings_Type {
+struct MQs_Readings_Type
+{
   float MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135;
 };
 MQs_Readings_Type MQs_Readings;
 
 boolean BlackBody_Motion, Flame;
 
-struct NEO7M_Readings_Type {
+struct NEO7M_Readings_Type
+{
   unsigned int Satellites;
   float Latitude, Longitude, Speed, Course, Altitude, HDOP;
 };
 NEO7M_Readings_Type NEO7M_Readings;
 
-unsigned int RDM6300_Reading;
+unsigned long RDM6300_Reading;
 
-struct DS3231_OutPut_Type {
+struct RC522_Reading_Type
+{
+  String PICC_Type;
+  boolean MIFARE_Classic_Validity;
+  unsigned long UID;
+};
+RC522_Reading_Type RC522_Reading;
+
+struct DS3231_OutPut_Type
+{
   int UNIX_Time, Year, Month, Day, Week_Day, Hour, Minute, Second;
   float Temperature;
 };
@@ -146,27 +163,35 @@ DS3231_OutPut_Type DS3231_OutPut;
 
 const char *Compilation_Date_Time = __DATE__ " " __TIME__;
 
-void SetUp_Buzzer(void) {
+void (*Reset_Arduino_Mega_2560)(void) = 0;
+
+void SetUp_Buzzer(void)
+{
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
 }
 
-String Scan_I2C(void) {
+String Scan_I2C(void)
+{
   byte error, address;
   unsigned int count = 0;
   String result = "";
 
-  for (address = 0x01; address < 0x7f; address++) {
+  for (address = 0x01; address < 0x7f; address++)
+  {
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
 
-    if (error == 0) {
+    if (error == 0)
+    {
       result += "0x";
       result += String(address, HEX);
       result += " ";
 
       count++;
-    } else if (error != 2) {
+    }
+    else if (error != 2)
+    {
       result += "Error ";
       result += error;
       result += " at address 0x";
@@ -175,29 +200,38 @@ String Scan_I2C(void) {
     }
   }
 
-  if (count == 0) {
+  if (count == 0)
+  {
     result += "No device";
   }
 
   return result;
 }
 
-void SetUp_MPU9250(void) {
-  if (MPU9250.init()) {
+void SetUp_MPU9250(void)
+{
+  if (MPU9250.init())
+  {
     I2C_Status.MPU9250 = true;
-  } else {
+  }
+  else
+  {
     I2C_Status.MPU9250 = false;
     digitalWrite(BUZZER, HIGH);
   }
 
-  if (MPU9250.initMagnetometer()) {
+  if (MPU9250.initMagnetometer())
+  {
     I2C_Status.MPU9250_Magnetometer = true;
-  } else {
+  }
+  else
+  {
     I2C_Status.MPU9250_Magnetometer = false;
     digitalWrite(BUZZER, HIGH);
   }
 
-  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer) {
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer)
+  {
     delay(1000);
 
     MPU9250.autoOffsets();
@@ -220,59 +254,77 @@ void SetUp_MPU9250(void) {
   }
 }
 
-void SetUp_BH1750(void) {
+void SetUp_BH1750(void)
+{
   if (bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) /* Highest */
   {
     I2C_Status.BH1750 = true;
-  } else {
+  }
+  else
+  {
     I2C_Status.BH1750 = false;
     digitalWrite(BUZZER, HIGH);
   }
 }
 
-void SetUp_BME280(void) {
-  if (bme280.init()) {
+void SetUp_BME280(void)
+{
+  if (bme280.init())
+  {
     I2C_Status.BME280 = true;
-  } else {
+  }
+  else
+  {
     I2C_Status.BME280 = false;
     digitalWrite(BUZZER, HIGH);
   }
 }
 
-void SetUp_RDM6300(void) {
+void SetUp_RDM6300(void)
+{
   RDM6300_UART.begin(RDM6300_BAUDRATE);
   RDM6300.begin(&RDM6300_UART);
 }
 
-void SetUp_RC522(void) {
+void SetUp_RC522(void)
+{
   RC522.PCD_Init();
 
-  for (byte i = 0; i < 6; i++) {
+  for (byte i = 0; i < 6; i++)
+  {
     RC522_Key.keyByte[i] = 0xFF;
   }
 }
 
-void SetUp_SG90(void) {
+void Attach_SG90(void)
+{
   SG90.attach(SG90_PIN);
-  SG90.write(SG90_STARTUP_POSITION);
-
-  // SG90.detach();
 }
 
-void SetUp_DS3231(void) {
+void SetUp_SG90(void)
+{
+  Attach_SG90();
+  SG90.write(SG90_STARTUP_POSITION);
+}
+
+void SetUp_DS3231(void)
+{
   DS3231.begin();
 
-  if (DS3231.lostPower()) {
+  if (DS3231.lostPower())
+  {
     DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
-void SetUp_BuiltIn_LED(void) {
+void SetUp_BuiltIn_LED(void)
+{
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-void SetUp_RGB_LED(void) {
+void SetUp_RGB_LED(void)
+{
   pinMode(RGB_LED_RED, OUTPUT);
   pinMode(RGB_LED_GREEN, OUTPUT);
   pinMode(RGB_LED_BLUE, OUTPUT);
@@ -282,8 +334,10 @@ void SetUp_RGB_LED(void) {
   digitalWrite(RGB_LED_BLUE, LOW);
 }
 
-void SetUp_SSD1306(void) {
-  if (!SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS)) {
+void SetUp_SSD1306(void)
+{
+  if (!SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS))
+  {
     I2C_Status.SSD1306 = false;
     digitalWrite(BUZZER, HIGH);
   }
@@ -297,7 +351,8 @@ void SetUp_SSD1306(void) {
   SSD1306.display();
 }
 
-void SetUp_Relays() {
+void SetUp_Relays()
+{
   pinMode(RELAY_1, OUTPUT);
   digitalWrite(RELAY_1, HIGH);
 
@@ -305,7 +360,8 @@ void SetUp_Relays() {
   digitalWrite(RELAY_2, HIGH);
 }
 
-void setup(void) {
+void setup(void)
+{
   SetUp_Buzzer();
 
   ESP32.begin(ESP32_BAUD_RATE);
@@ -345,14 +401,16 @@ void setup(void) {
   SetUp_Relays();
 }
 
-void Read_MPU9250(void) {
-  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer) {
+void Read_MPU9250(void)
+{
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer)
+  {
 
     xyzFloat acceleration = MPU9250.getGValues();
     xyzFloat gyro = MPU9250.getGyrValues();
     xyzFloat magneto = MPU9250.getMagValues();
     MPU9250_Readings.Acceleration.Resultant =
-      MPU9250.getResultantG(acceleration);
+        MPU9250.getResultantG(acceleration);
 
     MPU9250_Readings.Acceleration.X = acceleration.x;
     MPU9250_Readings.Acceleration.Y = acceleration.y;
@@ -367,7 +425,9 @@ void Read_MPU9250(void) {
     MPU9250_Readings.Magneto.Z = magneto.z;
 
     MPU9250_Readings.Temperature = MPU9250.getTemperature();
-  } else {
+  }
+  else
+  {
     MPU9250_Readings.Acceleration.X = 0;
     MPU9250_Readings.Acceleration.Y = 0;
     MPU9250_Readings.Acceleration.Z = 0;
@@ -385,21 +445,29 @@ void Read_MPU9250(void) {
   }
 }
 
-void Read_BH1750(void) {
-  if (I2C_Status.BH1750 && bh1750.measurementReady()) {
+void Read_BH1750(void)
+{
+  if (I2C_Status.BH1750 && bh1750.measurementReady())
+  {
     Light = bh1750.readLightLevel();
-  } else {
+  }
+  else
+  {
     Light = 0;
   }
 }
 
-void Read_BME280(void) {
-  if (I2C_Status.BME280) {
+void Read_BME280(void)
+{
+  if (I2C_Status.BME280)
+  {
     BME280_Readings.Temperature = bme280.getTemperature();
     BME280_Readings.Humidity = bme280.getHumidity();
     BME280_Readings.Pressure = bme280.getPressure();
     BME280_Readings.Altitude = bme280.calcAltitude(BME280_Readings.Pressure);
-  } else {
+  }
+  else
+  {
     BME280_Readings.Temperature = 0;
     BME280_Readings.Humidity = 0;
     BME280_Readings.Pressure = 0;
@@ -407,7 +475,8 @@ void Read_BME280(void) {
   }
 }
 
-void Read_MQ_Sensors(void) {
+void Read_MQ_Sensors(void)
+{
   MQs_Readings.MQ2 = analogRead(MQ2);
   MQs_Readings.MQ3 = analogRead(MQ3);
   MQs_Readings.MQ4 = analogRead(MQ4);
@@ -419,8 +488,10 @@ void Read_MQ_Sensors(void) {
   MQs_Readings.MQ135 = analogRead(MQ135);
 }
 
-void Read_NEO7M(void) {
-  while (NEO7M.available()) {
+void Read_NEO7M(void)
+{
+  while (NEO7M.available())
+  {
     GPS.encode(NEO7M.read());
   }
 
@@ -433,41 +504,39 @@ void Read_NEO7M(void) {
   NEO7M_Readings.HDOP = GPS.hdop.value();
 }
 
-struct RC522_Reading_Type {
-  String PICC_Type;
-  boolean MIFARE_Classic_Validity;
-  unsigned long UID;
-};
-RC522_Reading_Type RC522_Reading;
+void Read_RC522(void)
+{
+  RC522.PICC_IsNewCardPresent(); /* Needed to read. */
 
-void Read_RC522(void) {
-  RC522.PICC_IsNewCardPresent(); /* Needed to Read */
-
-  if (RC522.PICC_ReadCardSerial()) {
+  if (RC522.PICC_ReadCardSerial())
+  {
     MFRC522::PICC_Type PICC_Type = RC522.PICC_GetType(RC522.uid.sak);
     RC522_Reading.PICC_Type = RC522.PICC_GetTypeName(PICC_Type);
 
-    if (PICC_Type != MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type != MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type != MFRC522::PICC_TYPE_MIFARE_4K) {
+    if (PICC_Type != MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type != MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type != MFRC522::PICC_TYPE_MIFARE_4K)
+    {
       RC522_Reading.MIFARE_Classic_Validity = false;
 
       RC522_Reading.UID = 0;
-    } else {
+    }
+    else
+    {
       RC522_Reading.MIFARE_Classic_Validity = true;
 
-      RC522_Reading.UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24)
-                          | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16)
-                          | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8)
-                          | static_cast<unsigned long>(RC522.uid.uidByte[3]);
+      RC522_Reading.UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24) | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16) | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8) | static_cast<unsigned long>(RC522.uid.uidByte[3]);
 
       RC522.PICC_HaltA();
       RC522.PCD_StopCrypto1();
     }
-  } else {
+  }
+  else
+  {
     RC522_Reading.UID = 0;
   }
 }
 
-void Read_DS3231(void) {
+void Read_DS3231(void)
+{
   DateTime now = DS3231.now();
 
   DS3231_OutPut.UNIX_Time = now.unixtime();
@@ -484,7 +553,8 @@ void Read_DS3231(void) {
   DS3231_OutPut.Temperature = DS3231.getTemperature();
 }
 
-void Send_JSON(void) {
+void Send_JSON(void)
+{
   JsonDocument Readings_JSON;
 
   JsonDocument Acceleration_JSON;
@@ -492,7 +562,7 @@ void Send_JSON(void) {
   Acceleration_JSON["Y"] = MPU9250_Readings.Acceleration.Y;
   Acceleration_JSON["Z"] = MPU9250_Readings.Acceleration.Z;
   Acceleration_JSON["Resultant"] =
-    MPU9250_Readings.Acceleration.Resultant;
+      MPU9250_Readings.Acceleration.Resultant;
 
   JsonDocument Gyro_JSON;
   Gyro_JSON["X"] = MPU9250_Readings.Gyro.X;
@@ -538,8 +608,8 @@ void Send_JSON(void) {
   Readings_JSON["RDM6300"] = RDM6300_Reading;
 
   JsonDocument RC522_JSON;
-  // RC522_JSON["PICC_Type"] = RC522_Reading.PICC_Type;
-  // RC522_JSON["MIFARE_Classic_Validity"] = RC522_Reading.MIFARE_Classic_Validity;
+  RC522_JSON["PICC_Type"] = RC522_Reading.PICC_Type;
+  RC522_JSON["MIFARE_Classic_Validity"] = RC522_Reading.MIFARE_Classic_Validity;
   RC522_JSON["UID"] = RC522_Reading.UID;
   Readings_JSON["RC522"] = RC522_JSON;
 
@@ -572,81 +642,76 @@ void Send_JSON(void) {
   ESP32.flush();
 }
 
-//void Control_RGB_LED(boolean State) {
-//  if (State) {
-//    if (RDM6300_HS_Card != 0 && RDM6300_SS_Card != 0) {
-//      digitalWrite(RGB_LED_RED, LOW);
-//      digitalWrite(RGB_LED_GREEN, HIGH);
-//      digitalWrite(RGB_LED_BLUE, LOW);
-//    } else if (RDM6300_HS_Card != 0 || RDM6300_SS_Card != 0) {
-//      digitalWrite(RGB_LED_RED, LOW);
-//      digitalWrite(RGB_LED_GREEN, LOW);
-//      digitalWrite(RGB_LED_BLUE, HIGH);
-//    } else if (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0) {
-//      digitalWrite(RGB_LED_RED, HIGH);
-//      digitalWrite(RGB_LED_GREEN, LOW);
-//      digitalWrite(RGB_LED_BLUE, LOW);
-//    }
-//  } else {
-//    digitalWrite(RGB_LED_RED, LOW);
-//    digitalWrite(RGB_LED_GREEN, LOW);
-//    digitalWrite(RGB_LED_BLUE, LOW);
-//  }
-//}
-
-void Receive_JSON(void) {
-  while (ESP32.available()) {
+void Receive_JSON(void)
+{
+  while (ESP32.available())
+  {
     JsonDocument ESP32_JSON;
 
     DeserializationError ESP32_JSON_Error = deserializeJson(ESP32_JSON, ESP32);
 
-    if (ESP32_JSON_Error == DeserializationError::Ok) {
+    if (ESP32_JSON_Error == DeserializationError::Ok)
+    {
       digitalWrite(LED_BUILTIN, HIGH);
 
-      if (ESP32_JSON.containsKey("Authenticate")) {
-        unsigned int Number = ESP32_JSON["Authenticate"].as<unsigned int>();
-
-        if (Number == 1) {
-          //          do {
-          //            Read_RDM6300s();
-          //            Control_RGB_LED(true);
-          //          } while (RDM6300_HS_Card == 0 && RDM6300_SS_Card == 0);
-        } else if (Number == 2) {
-          //          do {
-          //            Read_RDM6300s();
-          //            Control_RGB_LED(true);
-          //          } while (RDM6300_HS_Card == 0 || RDM6300_SS_Card == 0);
+      if (ESP32_JSON.containsKey("Reset_Arduino_Mega_2560"))
+      {
+        bool If_Reset_Arduino_Mega_2560 = ESP32_JSON["Reset_Arduino_Mega_2560"].as<bool>();
+        if (If_Reset_Arduino_Mega_2560)
+        {
+          Reset_Arduino_Mega_2560();
         }
-
-        Serial.println();
-        Serial.println(RDM6300_Reading);
-
-        //        delay(100);
-        //        Control_RGB_LED(false);
       }
 
-      if (ESP32_JSON.containsKey("SG90")) {
-        unsigned int SG90_Position = ESP32_JSON["SG90"].as<unsigned int>();
+      if (ESP32_JSON.containsKey("SG90_Position"))
+      {
+        unsigned int SG90_Position = ESP32_JSON["SG90_Position"].as<unsigned int>();
 
         SG90.write(SG90_Position);
       }
 
-      if (ESP32_JSON.containsKey("Relay_1")) {
-        String Relay_1_State = ESP32_JSON["Relay_1"];
+      if (ESP32_JSON.containsKey("Detach_SG90"))
+      {
+        bool If_Detach_SG90 = ESP32_JSON["Detach_SG90"].as<bool>();
 
-        if (Relay_1_State == "On") {
+        if (If_Detach_SG90)
+        {
+          SG90.detach();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Attach_SG90"))
+      {
+        bool If_Attach_SG90 = ESP32_JSON["Attach_SG90"].as<bool>();
+
+        if (If_Attach_SG90)
+        {
+          Attach_SG90();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Relay_1"))
+      {
+        bool Relay_1_State = ESP32_JSON["Relay_1"].as<bool>();
+        if (Relay_1_State)
+        {
           digitalWrite(RELAY_1, LOW);
-        } else if (Relay_1_State == "Off") {
+        }
+        else if (!Relay_1_State)
+        {
           digitalWrite(RELAY_1, HIGH);
         }
       }
 
-      if (ESP32_JSON.containsKey("Relay_2")) {
-        String Relay_2_State = ESP32_JSON["Relay_2"];
-
-        if (Relay_2_State == "On") {
+      if (ESP32_JSON.containsKey("Relay_2"))
+      {
+        bool Relay_2_State = ESP32_JSON["Relay_2"].as<bool>();
+        if (Relay_2_State)
+        {
           digitalWrite(RELAY_2, LOW);
-        } else if (Relay_2_State == "Off") {
+        }
+        else if (!Relay_2_State)
+        {
           digitalWrite(RELAY_2, HIGH);
         }
       }
@@ -656,7 +721,8 @@ void Receive_JSON(void) {
   }
 }
 
-void loop(void) {
+void loop(void)
+{
   digitalWrite(LED_BUILTIN, HIGH);
 
   Read_MPU9250();
@@ -683,9 +749,22 @@ void loop(void) {
 
   Send_JSON();
 
-  while (!ESP32.available()) {
+  while (!ESP32.available())
+  {
     delay(10);
   }
 
   Receive_JSON();
 }
+
+// TODO:
+// Set Buzzer on I2C Error of DS3231
+// Set Buzzer on Serial Initialization Failures
+// NEO7M Physical Test
+// Set Usage of RGB LED
+// Buy IR Flame Sensor
+// RCWL0516 Interference
+// SIM900A
+// MAX30102
+// DSM501A
+// DS3231 Alarm
