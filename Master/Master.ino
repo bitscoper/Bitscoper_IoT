@@ -1,244 +1,246 @@
-/* By Abdullah As-Sadeed*/
-
-/* https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json */
+/* by Abdullah As-Sadeed */
 
 /*
-  Board: "ESP32 Dev Module"
-  Upload Speed: "921600"
-  CPU Frequency: "240MHz (WiFi/BT)"
-  Flash Frequency: "40MHz"
-  Flash Mode: "DIO"
-  Flash Size: "4MB (32Mb)"
-  Partition Scheme: "Huge APP (3MB No OTA/1MB SPIFFS)"
-  Core Debug Level: "Warn"
-  PSRAM: "Disabled"
-  Arduino Runs On: "Core 1"
-  Events Run On: "Core 1"
-  Erase All Flash Before Sketch Upload: "Disabled"
-  JTAG Adapter: "Disabled"
-  Zigbee Mode: "Disabled"
-  Programmer: "Esptool"
+Board: "Arduino Mega or Mega 2560"
+Processor: "ATmega2560 (Mega 2560)"
+Programmer: "AVR ISP"
 */
 
-/*
-  /home/bitscoper/.arduino15/packages/esp32/hardware/esp32/3.0.1/cores/esp32/HardwareSerial.h
+#include <Arduino.h>
+#include <Wire.h>
+#include <SPI.h>
 
-  #ifndef RX1
-  #if CONFIG_IDF_TARGET_ESP32
-  #define RX1 26
-  #endif
-  #endif
+#include <MPU9250_WE.h>
 
-  #ifndef TX1
-  #if CONFIG_IDF_TARGET_ESP32
-  #define TX1 27
-  #endif
-  #endif
+#include <BH1750.h>
 
-*/
+#include <Seeed_BME280.h>
 
-#include "FS.h"
-#include "SPIFFS.h"
+#include <rdm6300.h>
+#include <MFRC522.h>
 
-#include "Arduino.h"
-#include "esp_arduino_version.h"
+#include <TinyGPSPlus.h>
 
-#include "LiquidCrystal_I2C.h"
+#include <RTClib.h>
 
-#include "ESP32Servo.h"
-#include "rdm6300.h" /* https://github.com/arduino12/rdm6300 */
+#include <Stepper.h>
+#include <Servo.h>
 
-#include "Wire.h"
+#include <Adafruit_SSD1306.h>
 
-#include "MPU9250_WE.h"
+#include <ArduinoJson.h>
 
-#include "BH1750.h"
+#define MPU9250_ADDRESS 0x69
+#define BH1750_ADDRESS 0x23
 
-#include "Seeed_BME280.h"
+#define MQ2 A0
+#define MQ3 A1
+#define MQ4 A2
+#define MQ5 A3
+#define MQ6 A4
+#define MQ7 A5
+#define MQ8 A6
+#define MQ9 A7
+#define MQ135 A8
 
-#include "TinyGPSPlus.h"
+#define RCWL0516 24
 
-#include "Lewis.h"
+#define FLAME_SENSOR 22
 
-#include "esp_wifi.h"
-#include "WiFi.h"
+#define RDM6300_UART Serial3
 
-#include "AsyncTCP.h"          /* https://github.com/me-no-dev/AsyncTCP */
-#include "ESPAsyncWebServer.h" /* https://github.com/me-no-dev/ESPAsyncWebServer */
+#define RC522_SS 53
+#define RC522_RESET 5
 
-#include "ArduinoJson.h"
+#define NEO7M Serial2
+#define NEO7M_BAUD_RATE 9600
 
-/* Local */
-#include "Confidentials.h"
+#define SG90_PIN 7
+#define SG90_STARTUP_POSITION 180
 
-#define FORMAT_SPIFFS_IF_FAILED true
+#define SSD1306_ADDRESS 0x3C
+#define SSD1306_RESET -1
+#define SSD1306_WIDTH 128
+#define SSD1306_HEIGHT 64
 
-#define SG90_Pin 27
-#define RDM6300_Pin 35
-#define Work_LED_Pin 2
+#define RGB_LED_RED 10
+#define RGB_LED_GREEN 9
+#define RGB_LED_BLUE 8
 
-#define SIM800L__NEO7M Serial1
+#define BUZZER 11
 
-#define RCWL0516_Pin 13
+#define RELAY_1 23
+#define RELAY_2 25
 
-#define Flame_Sensor_Pin 15
+#define ESP32 Serial
+#define ESP32_BAUD_RATE 115200
 
-#define Slave_Board Serial2
+MPU9250_WE MPU9250 = MPU9250_WE(MPU9250_ADDRESS);
 
-#define Relay_1_Pin 32
-#define Relay_2_Pin 33
-
-#define Buzzer_LED_Pin 4
-
-LiquidCrystal_I2C LCD(0x3f, 16, 2);
-
-Servo SG90;
-
-Rdm6300 RDM6300;
-
-MPU9250_WE MPU9250 = MPU9250_WE(0x68);
-
-BH1750 bh1750(0x23);
+BH1750 bh1750(BH1750_ADDRESS);
 
 BME280 bme280;
 
+Rdm6300 RDM6300;
+
+MFRC522 RC522(RC522_SS, RC522_RESET);
+MFRC522::MIFARE_Key RC522_Key;
+
 TinyGPSPlus GPS;
 
-Lewis Morse_Code;
+RTC_DS3231 DS3231;
 
-AsyncWebServer Server(80);
-AsyncEventSource Events("/Events");
+Servo SG90;
 
-boolean Any_Failed_Authentication = false, MPU9250_Status, MPU9250_Magnetometer_Status, BH1750_Status, BME280_Status, BlackBody_Motion, Flame, Called_Yet = false;
+Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
 
-unsigned int Satellites;
+struct I2C_Status_Type
+{
+  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280, SSD1306;
+};
+I2C_Status_Type I2C_Status;
 
-unsigned long SSE_Delay = 500, Last_SSE_Time = 0, SSEs = 0, Call_Delay = 60000, Last_Call_Time = 0;
+struct Acceleration_Type
+{
+  float X, Y, Z, Resultant;
+};
+struct Gyro_Type
+{
+  float X, Y, Z;
+};
+struct Magneto_Type
+{
+  float X, Y, Z;
+};
+struct MPU9250_Readings_Type
+{
+  struct Acceleration_Type Acceleration;
+  struct Gyro_Type Gyro;
+  struct Magneto_Type Magneto;
+  float Temperature;
+};
+MPU9250_Readings_Type MPU9250_Readings;
 
-float Acceleration_X, Acceleration_Y, Acceleration_Z, Resultant_Acceleration, Gyro_X, Gyro_Y, Gyro_Z, Magneto_X, Magneto_Y, Magneto_Z, Light, Temperature_MPU9250, Temperature_BME280, Humidity, Pressure, Altitude_BME280, Latitude, Longitude, Speed, Course, Altitude_GPS, HDOP, MQ_2, MQ_3, MQ_4, MQ_5, MQ_6, MQ_7, MQ_8, MQ_9, MQ_135, Slave_UpTime;
+float Light;
 
-const char *Compile_Date_Time = __DATE__ " " __TIME__;
+struct BME280_Readings_Type
+{
+  float Temperature, Humidity, Pressure, Altitude;
+};
+BME280_Readings_Type BME280_Readings;
+
+struct MQs_Readings_Type
+{
+  float MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135;
+};
+MQs_Readings_Type MQs_Readings;
+
+boolean BlackBody_Motion, Flame;
+
+struct NEO7M_Readings_Type
+{
+  unsigned int Satellites;
+  float Latitude, Longitude, Speed, Course, Altitude, HDOP;
+};
+NEO7M_Readings_Type NEO7M_Readings;
+
+unsigned long RDM6300_Reading;
+
+struct RC522_Reading_Type
+{
+  String PICC_Type;
+  boolean MIFARE_Classic_Validity;
+  unsigned long UID;
+};
+RC522_Reading_Type RC522_Reading;
+
+struct DS3231_OutPut_Type
+{
+  int UNIX_Time, Year, Month, Day, Week_Day, Hour, Minute, Second;
+  float Temperature;
+};
+DS3231_OutPut_Type DS3231_OutPut;
+
+const char *Compilation_Date_Time = __DATE__ " " __TIME__;
+
+void (*Reset_Arduino_Mega_2560)(void) = 0;
+
+void SetUp_Buzzer(void)
+{
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(BUZZER, LOW);
+}
 
 String Scan_I2C(void)
 {
   byte error, address;
-  int I2C_Devices_Count = 0;
-  String I2C_Scan_Result = "";
+  unsigned int count = 0;
+  String result = "";
 
   for (address = 0x01; address < 0x7f; address++)
   {
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
+
     if (error == 0)
     {
-      I2C_Scan_Result += "0x";
-      I2C_Scan_Result += String(address, HEX);
-      I2C_Scan_Result += "  ";
+      result += "0x";
+      result += String(address, HEX);
+      result += " ";
 
-      I2C_Devices_Count++;
+      count++;
     }
     else if (error != 2)
     {
-      I2C_Scan_Result += "Error ";
-      I2C_Scan_Result += error;
-      I2C_Scan_Result += " at address 0x";
-      I2C_Scan_Result += String(address, HEX);
-      I2C_Scan_Result += "\n";
+      result += "Error ";
+      result += error;
+      result += " at address 0x";
+      result += String(address, HEX);
+      result += "\n";
     }
   }
 
-  if (I2C_Devices_Count == 0)
+  if (count == 0)
   {
-    I2C_Scan_Result += "No device";
+    result += "No device";
   }
 
-  return I2C_Scan_Result;
-}
-
-void SetUp_LCD(void)
-{
-  LCD.init();
-  LCD.backlight();
-
-  LCD.clear();
-}
-
-void SetUp_SG90(void)
-{
-  SG90.setPeriodHertz(50);
-  SG90.attach(SG90_Pin, 500, 2400);
-}
-
-void Authenticate(void)
-{
-  unsigned int Card;
-
-  LCD.setCursor(2, 0);
-  LCD.print("Authenticate");
-
-  SG90.write(90);
-
-  do
-  {
-    Card = RDM6300.get_tag_id();
-
-    if (RDM6300.get_tag_id() && Card != Authenticated_Card)
-    {
-      LCD.setCursor(2, 0);
-      LCD.print(" Wrong Card ");
-      SG90.write(120);
-
-      Any_Failed_Authentication = true;
-    }
-    else
-    {
-      LCD.setCursor(2, 0);
-      LCD.print("Authenticate");
-      SG90.write(90);
-    }
-
-    delay(10);
-  } while (Card != Authenticated_Card);
-
-  LCD.clear();
-  LCD.setCursor(4, 0);
-  LCD.print("Booting");
-  LCD.setCursor(2, 1);
-  LCD.print("Full System");
-  SG90.write(0);
+  return result;
 }
 
 void SetUp_MPU9250(void)
 {
   if (MPU9250.init())
   {
-    MPU9250_Status = true;
+    I2C_Status.MPU9250 = true;
   }
   else
   {
-    MPU9250_Status = false;
+    I2C_Status.MPU9250 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 
   if (MPU9250.initMagnetometer())
   {
-    MPU9250_Magnetometer_Status = true;
+    I2C_Status.MPU9250_Magnetometer = true;
   }
   else
   {
-    MPU9250_Magnetometer_Status = false;
+    I2C_Status.MPU9250_Magnetometer = false;
+    digitalWrite(BUZZER, HIGH);
   }
 
-  if (MPU9250_Status && MPU9250_Magnetometer_Status)
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer)
   {
     delay(1000);
 
     MPU9250.autoOffsets();
 
     MPU9250.enableAccDLPF(true);
-    MPU9250.setAccDLPF(MPU9250_DLPF_6); /* 7 is not good */
+    MPU9250.setAccDLPF(MPU9250_DLPF_6); /* Lowest Noise */
 
     MPU9250.enableGyrDLPF();
-    MPU9250.setGyrDLPF(MPU9250_DLPF_6); /* 7 is not good */
+    MPU9250.setGyrDLPF(MPU9250_DLPF_6); /* Lowest Noise */
 
     MPU9250.setAccRange(MPU6500_ACC_RANGE_16G); /* Highest */
 
@@ -249,749 +251,126 @@ void SetUp_MPU9250(void)
     MPU9250.setSampleRateDivider(0); /* Lowest */
 
     delay(200);
-  };
+  }
 }
 
 void SetUp_BH1750(void)
 {
-  if (bme280.init())
+  if (bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) /* Highest */
   {
-    BME280_Status = true;
+    I2C_Status.BH1750 = true;
   }
   else
   {
-    BME280_Status = false;
+    I2C_Status.BH1750 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 }
 
 void SetUp_BME280(void)
 {
-  if (bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) /* Highest */
+  if (bme280.init())
   {
-    BH1750_Status = true;
+    I2C_Status.BME280 = true;
   }
   else
   {
-    BH1750_Status = false;
+    I2C_Status.BME280 = false;
+    digitalWrite(BUZZER, HIGH);
   }
 }
 
-void SetUp_Relays(void)
+void SetUp_RDM6300(void)
 {
-  pinMode(Relay_1_Pin, OUTPUT);
-  pinMode(Relay_2_Pin, OUTPUT);
-
-  digitalWrite(Relay_1_Pin, HIGH);
-  digitalWrite(Relay_2_Pin, HIGH);
+  RDM6300_UART.begin(RDM6300_BAUDRATE);
+  RDM6300.begin(&RDM6300_UART);
 }
 
-void SetUp_WiFi(void)
+void SetUp_RC522(void)
 {
-  const char *HostName = "Bitscoper_IoT";
+  RC522.PCD_Init();
 
-  WiFi.mode(WIFI_STA);
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname(HostName);
-
-  WiFi.begin(WiFi_SSID, WiFi_PassWord);
-
-  while (WiFi.status() != WL_CONNECTED)
+  for (byte i = 0; i < 6; i++)
   {
+    RC522_Key.keyByte[i] = 0xFF;
   }
 }
 
-void SetUp_Work_LED(void)
+void Attach_SG90(void)
 {
-  pinMode(Work_LED_Pin, OUTPUT);
-  digitalWrite(Work_LED_Pin, LOW);
+  SG90.attach(SG90_PIN);
 }
 
-void Add_Common_Headers(AsyncWebServerResponse *response)
+void SetUp_SG90(void)
 {
-  response->addHeader("X-Content-Type-Options", "nosniff");
-  response->addHeader("X-Frame-Options", "SAMEORIGIN");
-  response->addHeader("Referrer-Policy", "strict-origin");
-  response->addHeader("Server", "Bitscoper IoT");
-
-  response->addHeader("Access-Control-Allow-Origin", "*");
+  Attach_SG90();
+  SG90.write(SG90_STARTUP_POSITION);
 }
 
-void Handle_Error_404(AsyncWebServerRequest *request)
+void SetUp_DS3231(void)
 {
-  String Response_Text = "HTTP 404\n\n";
+  DS3231.begin();
 
-  Response_Text += "Version: ";
-  int version = request->version();
-  if (version == 0)
+  if (DS3231.lostPower())
   {
-    Response_Text += "HTTP/1.0\n\n";
-  }
-  else if (version == 1)
-  {
-    Response_Text += "HTTP/1.1\n\n";
-  }
-  Response_Text += "Host: ";
-  Response_Text += request->host();
-  Response_Text += "\n\nURL: ";
-  Response_Text += request->url();
-  Response_Text += "\n\nMethod: ";
-  int method = request->method();
-  if (method == HTTP_GET)
-  {
-    Response_Text += "GET";
-  }
-  else if (method == HTTP_POST)
-  {
-    Response_Text += "POST";
-  }
-  else if (method == HTTP_DELETE)
-  {
-    Response_Text += "DELETE";
-  }
-  else if (method == HTTP_PUT)
-  {
-    Response_Text += "PUT";
-  }
-  else if (method == HTTP_PATCH)
-  {
-    Response_Text += "PATCH";
-  }
-  else if (method == HTTP_HEAD)
-  {
-    Response_Text += "HEAD";
-  }
-  else if (method == HTTP_OPTIONS)
-  {
-    Response_Text += "OPTIONS";
-  }
-  Response_Text += "\n\nTotal arguments: ";
-  int args = request->args();
-  Response_Text += args;
-  Response_Text += "\n\n";
-  if (args > 0)
-  {
-    Response_Text += "Arguments:\n";
-    for (int i = 0; i < args; i++)
-    {
-      Response_Text += "\t  ";
-      Response_Text += request->argName(i).c_str();
-      Response_Text += ": ";
-      Response_Text += request->arg(i).c_str();
-      Response_Text += "\n";
-    }
-    Response_Text += "\n";
-  }
-  Response_Text += "Total request headers: ";
-  Response_Text += request->headers();
-
-  AsyncWebServerResponse *response = request->beginResponse(404, "text/plain; charset=utf-8", Response_Text);
-  Add_Common_Headers(response);
-  response->addHeader("Content-Disposition", "inline; filename=\"Bitscoper IoT | Error 404\"");
-  request->send(response);
-}
-
-void Handle_I2C_Scan(AsyncWebServerRequest *request)
-{
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/html; charset=utf-8", Scan_I2C());
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Handle_Relays(AsyncWebServerRequest *request)
-{
-  String Relay_Number, Relay_State, Response_Text;
-
-  int args = request->args();
-  if (args > 0)
-  {
-    for (int i = 0; i < args; i++)
-    {
-      if (request->argName(i) == "Number")
-      {
-        Relay_Number = request->arg(i);
-      }
-      else if (request->argName(i) == "State")
-      {
-        Relay_State = request->arg(i);
-      }
-    }
-  }
-
-  if (Relay_Number == "1")
-  {
-    if (Relay_State == "1")
-    {
-      digitalWrite(Relay_1_Pin, LOW);
-
-      Response_Text = "Relay 1 On";
-    }
-    else if (Relay_State == "0")
-    {
-      digitalWrite(Relay_1_Pin, HIGH);
-
-      Response_Text = "Relay 1 Off";
-    }
-  }
-  else if (Relay_Number == "2")
-  {
-    if (Relay_State == "1")
-    {
-      digitalWrite(Relay_2_Pin, LOW);
-
-      Response_Text = "Relay 2 On";
-    }
-    else if (Relay_State == "0")
-    {
-      digitalWrite(Relay_2_Pin, HIGH);
-
-      Response_Text = "Relay 2 Off";
-    }
-  }
-
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/plain; charset=utf-8", Response_Text);
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Handle_Morse_Code(AsyncWebServerRequest *request)
-{
-  String Message;
-
-  int args = request->args();
-  if (args > 0)
-  {
-    for (int i = 0; i < args; i++)
-    {
-      if (request->argName(i) == "String")
-      {
-        Message = request->arg(i);
-      }
-    }
-  }
-
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/plain; charset=utf-8", "");
-  Add_Common_Headers(response);
-  request->send(response);
-
-  Morse_Code.print(Message);
-}
-
-void Handle_WiFi_Scan(AsyncWebServerRequest *request)
-{
-  String WiFi_Scan_Result = "";
-
-  int n = WiFi.scanComplete();
-  if (n == -2)
-  {
-    WiFi.scanNetworks(true);
-  }
-  else if (n)
-  {
-    WiFi_Scan_Result += "<table>\n<tbody>\n<tr>\n<th colspan=\"5\">Nearby Wi-Fi Access Points</th>\n</tr>\n<tr>\n<th>RSSI</th>\n<th>SSID</th>\n<th>BSSID</th>\n<th>Channel</th>\n<th>Encryption</th>\n</tr>\n";
-    for (int i = 0; i < n; ++i)
-    {
-      WiFi_Scan_Result += "<tr>\n<td>";
-      WiFi_Scan_Result += WiFi.RSSI(i);
-      WiFi_Scan_Result += "</td>\n<td>";
-      WiFi_Scan_Result += WiFi.SSID(i);
-      WiFi_Scan_Result += "</td>\n<td>";
-      WiFi_Scan_Result += WiFi.BSSIDstr(i);
-      WiFi_Scan_Result += "</td>\n<td>";
-      WiFi_Scan_Result += WiFi.channel(i);
-      WiFi_Scan_Result += "</td>\n<td>";
-      int encryption = WiFi.encryptionType(i);
-      if (encryption == WIFI_AUTH_OPEN)
-      {
-        WiFi_Scan_Result += "Open";
-      }
-      else if (encryption == WIFI_AUTH_WEP)
-      {
-        WiFi_Scan_Result += "WEP";
-      }
-      else if (encryption == WIFI_AUTH_WPA_PSK)
-      {
-        WiFi_Scan_Result += "WPA PSK";
-      }
-      else if (encryption == WIFI_AUTH_WPA2_PSK)
-      {
-        WiFi_Scan_Result += "WPA2 PSK";
-      }
-      else if (encryption == WIFI_AUTH_WPA_WPA2_PSK)
-      {
-        WiFi_Scan_Result += "WPA WPA2 PSK";
-      }
-      else if (encryption == WIFI_AUTH_WPA2_ENTERPRISE)
-      {
-        WiFi_Scan_Result += "WPA2 Enterprise";
-      }
-      WiFi_Scan_Result += "</td>\n</tr>\n";
-    }
-    WiFi_Scan_Result += "</tbody>\n</table>\n";
-
-    WiFi.scanDelete();
-    if (WiFi.scanComplete() == -2)
-    {
-      WiFi.scanNetworks(true);
-    }
-  }
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/html; charset=utf-8", WiFi_Scan_Result);
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Handle_ReBoot(AsyncWebServerRequest *request)
-{
-  boolean Authorized_ReBoot = false;
-  String Response_Text = "";
-
-  int args = request->args();
-  if (args > 0)
-  {
-    for (int i = 0; i < args; i++)
-    {
-      if (request->argName(i) == "Confirm" && request->arg(i) == "true")
-      {
-        Authorized_ReBoot = true;
-        Response_Text = "Rebooting";
-      }
-    }
-  }
-
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/plain; charset=utf-8", Response_Text);
-  Add_Common_Headers(response);
-  request->send(response);
-
-  if (Authorized_ReBoot)
-  {
-    esp_restart();
+    DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
-void Get_Slave_Readings(void)
+void SetUp_BuiltIn_LED(void)
 {
-  while (Slave_Board.available())
-  {
-    JsonDocument Slave_Readings;
-
-    DeserializationError JSON_Error = deserializeJson(Slave_Readings, Slave_Board);
-
-    if (JSON_Error == DeserializationError::Ok)
-    {
-      MQ_2 = Slave_Readings["MQ_2"].as<float>();
-      MQ_3 = Slave_Readings["MQ_3"].as<float>();
-      MQ_4 = Slave_Readings["MQ_4"].as<float>();
-      MQ_5 = Slave_Readings["MQ_5"].as<float>();
-      MQ_6 = Slave_Readings["MQ_6"].as<float>();
-      MQ_7 = Slave_Readings["MQ_7"].as<float>();
-      MQ_8 = Slave_Readings["MQ_8"].as<float>();
-      MQ_9 = Slave_Readings["MQ_9"].as<float>();
-      MQ_135 = Slave_Readings["MQ_135"].as<float>();
-
-      Slave_UpTime = Slave_Readings["UpTime"].as<float>();
-    }
-  }
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
-void Call_About_Flame(void)
+void SetUp_RGB_LED(void)
 {
-  if (Flame)
-  {
-    if (!Called_Yet || ((millis() - Last_Call_Time) > Call_Delay))
-    {
-      SIM800L__NEO7M.print("ATD+ ");
-      SIM800L__NEO7M.print(Phone_Number);
-      SIM800L__NEO7M.print(";\r\n");
+  pinMode(RGB_LED_RED, OUTPUT);
+  pinMode(RGB_LED_GREEN, OUTPUT);
+  pinMode(RGB_LED_BLUE, OUTPUT);
 
-      Called_Yet = true;
-      Last_Call_Time = millis();
-    }
-  }
+  digitalWrite(RGB_LED_RED, LOW);
+  digitalWrite(RGB_LED_GREEN, LOW);
+  digitalWrite(RGB_LED_BLUE, LOW);
 }
 
-void Take_Auto_Actions(void)
+void SetUp_SSD1306(void)
 {
-  Call_About_Flame();
+  if (!SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS))
+  {
+    I2C_Status.SSD1306 = false;
+    digitalWrite(BUZZER, HIGH);
+  }
+
+  SSD1306.clearDisplay();
+
+  SSD1306.setTextSize(1);
+  SSD1306.setTextColor(SSD1306_WHITE);
+  SSD1306.setCursor(25, 0);
+  SSD1306.println(F("Bitscoper IoT"));
+  SSD1306.display();
 }
 
-void Get_Readings(void)
+void SetUp_Relays()
 {
-  if (MPU9250_Status && MPU9250_Magnetometer_Status)
-  {
+  pinMode(RELAY_1, OUTPUT);
+  digitalWrite(RELAY_1, HIGH);
 
-    xyzFloat acceleration = MPU9250.getGValues();
-    xyzFloat gyro = MPU9250.getGyrValues();
-    xyzFloat magneto = MPU9250.getMagValues();
-    Resultant_Acceleration = MPU9250.getResultantG(acceleration);
-
-    Acceleration_X = acceleration.x;
-    Acceleration_Y = acceleration.y;
-    Acceleration_Z = acceleration.z;
-
-    Gyro_X = gyro.x;
-    Gyro_Y = gyro.y;
-    Gyro_Z = gyro.z;
-
-    Magneto_X = magneto.x;
-    Magneto_Y = magneto.y;
-    Magneto_Z = magneto.z;
-
-    Temperature_MPU9250 = MPU9250.getTemperature();
-  }
-  else
-  {
-    Acceleration_X = 0;
-    Acceleration_Y = 0;
-    Acceleration_Z = 0;
-    Resultant_Acceleration = 0;
-    Gyro_X = 0;
-    Gyro_Y = 0;
-    Gyro_Z = 0;
-    Magneto_X = 0;
-    Magneto_Y = 0;
-    Magneto_Z = 0;
-    Temperature_MPU9250 = 0;
-  }
-
-  if (BH1750_Status && bh1750.measurementReady())
-  {
-    Light = bh1750.readLightLevel();
-  }
-  else
-  {
-    Light = 0;
-  }
-
-  if (BME280_Status)
-  {
-    Temperature_BME280 = bme280.getTemperature();
-    Humidity = bme280.getHumidity();
-    Pressure = bme280.getPressure();
-    Altitude_BME280 = bme280.calcAltitude(Pressure);
-  }
-  else
-  {
-    Temperature_BME280 = 0;
-    Humidity = 0;
-    Pressure = 0;
-    Altitude_BME280 = 0;
-  }
-
-  while (SIM800L__NEO7M.available())
-  {
-    GPS.encode(SIM800L__NEO7M.read());
-  }
-
-  Latitude = GPS.location.lat();
-  Longitude = GPS.location.lng();
-  Speed = GPS.speed.kmph();
-  Course = GPS.course.deg();
-  Altitude_GPS = GPS.altitude.meters();
-  Satellites = GPS.satellites.value();
-  HDOP = GPS.hdop.value();
-
-  BlackBody_Motion = digitalRead(RCWL0516_Pin);
-
-  Flame = !digitalRead(Flame_Sensor_Pin);
-
-  do
-  {
-    Get_Slave_Readings();
-  } while (MQ_2 == 0 && MQ_3 == 0 && MQ_4 == 0 && MQ_5 == 0 && MQ_6 == 0 && MQ_7 == 0 && MQ_8 == 0 && MQ_9 == 0 && MQ_135 == 0 && Slave_UpTime == 0);
-
-  Take_Auto_Actions();
-}
-
-String Process_Page(const String &var)
-{
-  int chip_id = 0;
-
-  for (int i = 0; i < 17; i = i + 8)
-  {
-    chip_id |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-  }
-
-  Get_Readings();
-
-  if (var == "CHIP_MODEL")
-  {
-    return String(ESP.getChipModel());
-  }
-  else if (var == "CHIP_REVISION")
-  {
-    return String(ESP.getChipRevision());
-  }
-  else if (var == "CHIP_CORES")
-  {
-    return String(ESP.getChipCores());
-  }
-  else if (var == "CHIP_ID")
-  {
-    return String(chip_id);
-  }
-  else if (var == "MAC_ADDRESS")
-  {
-    return String(WiFi.macAddress());
-  }
-  else if (var == "HOST_NAME")
-  {
-    return String(WiFi.getHostname());
-  }
-  else if (var == "LOCAL_IP_ADDRESS")
-  {
-    return String(WiFi.localIP().toString().c_str());
-  }
-  else if (var == "COMPILE_DATE_TIME")
-  {
-    return String(Compile_Date_Time);
-  }
-  else if (var == "ANY_FAILED_AUTHENTICATION")
-  {
-    if (Any_Failed_Authentication)
-    {
-      return "Yes";
-    }
-    else
-    {
-      return "No";
-    }
-  }
-  else if (var == "UPTIME")
-  {
-    return String(millis() / 1000);
-  }
-  else if (var == "SLAVE_UPTIME")
-  {
-    return String(Slave_UpTime);
-  }
-  else if (var == "Acceleration_X")
-  {
-    return String(Acceleration_X);
-  }
-  else if (var == "Acceleration_Y")
-  {
-    return String(Acceleration_Y);
-  }
-  else if (var == "Acceleration_Z")
-  {
-    return String(Acceleration_Z);
-  }
-  else if (var == "Resultant_Acceleration")
-  {
-    return String(Resultant_Acceleration);
-  }
-  else if (var == "Gyro_X")
-  {
-    return String(Gyro_X);
-  }
-  else if (var == "Gyro_Y")
-  {
-    return String(Gyro_Y);
-  }
-  else if (var == "Gyro_Z")
-  {
-    return String(Gyro_Z);
-  }
-  else if (var == "Magneto_X")
-  {
-    return String(Magneto_X);
-  }
-  else if (var == "Magneto_Y")
-  {
-    return String(Magneto_Y);
-  }
-  else if (var == "Magneto_Z")
-  {
-    return String(Magneto_Z);
-  }
-  else if (var == "LIGHT")
-  {
-    return String(Light);
-  }
-  else if (var == "Temperature_MPU9250")
-  {
-    return String(Temperature_MPU9250);
-  }
-  else if (var == "Temperature_BME280")
-  {
-    return String(Temperature_BME280);
-  }
-  else if (var == "HUMIDITY")
-  {
-    return String(Humidity);
-  }
-  else if (var == "PRESSURE")
-  {
-    return String(Pressure);
-  }
-  else if (var == "ALTITUDE")
-  {
-    return String(Altitude_BME280);
-  }
-  else if (var == "LATITUDE")
-  {
-    return String(Latitude);
-  }
-  else if (var == "LONGITUDE")
-  {
-    return String(Longitude);
-  }
-  else if (var == "SPEED")
-  {
-    return String(Speed);
-  }
-  else if (var == "COURSE")
-  {
-    return String(Course);
-  }
-  else if (var == "ALTITUDE_GPS")
-  {
-    return String(Altitude_GPS);
-  }
-  else if (var == "SATELLITES")
-  {
-    return String(Satellites);
-  }
-  else if (var == "HDOP")
-  {
-    return String(HDOP);
-  }
-  else if (var == "MQ_2")
-  {
-    return String(MQ_2);
-  }
-  else if (var == "MQ_3")
-  {
-    return String(MQ_3);
-  }
-  else if (var == "MQ_4")
-  {
-    return String(MQ_4);
-  }
-  else if (var == "MQ_5")
-  {
-    return String(MQ_5);
-  }
-  else if (var == "MQ_6")
-  {
-    return String(MQ_6);
-  }
-  else if (var == "MQ_7")
-  {
-    return String(MQ_7);
-  }
-  else if (var == "MQ_8")
-  {
-    return String(MQ_8);
-  }
-  else if (var == "MQ_9")
-  {
-    return String(MQ_9);
-  }
-  else if (var == "MQ_135")
-  {
-    return String(MQ_135);
-  }
-
-  return String();
-}
-
-void Handle_Root(AsyncWebServerRequest *request)
-{
-  File xhtml_body_file = SPIFFS.open("/Client.xhtml", "r");
-
-  String xhtml_body_content = xhtml_body_file.readString();
-  xhtml_body_file.close();
-
-  const char *xhtml_body PROGMEM = xhtml_body_content.c_str();
-
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html; charset=utf-8", xhtml_body, Process_Page);
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Serve_FavIcon(AsyncWebServerRequest *request)
-{
-  File favicon_file = SPIFFS.open("/favicon.ico", "r");
-
-  AsyncWebServerResponse *response = request->beginResponse(favicon_file, "image/vnd.microsoft.icon");
-  response->addHeader("Content-Type", "image/vnd.microsoft.icon");
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Serve_CSS(AsyncWebServerRequest *request)
-{
-  File CSS_file = SPIFFS.open("/Client.css", "r");
-  String CSS = CSS_file.readString();
-  CSS_file.close();
-
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/css", CSS);
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Serve_JavaScript(AsyncWebServerRequest *request)
-{
-  File JavaScript_file = SPIFFS.open("/Client.js", "r");
-  String JavaScript = JavaScript_file.readString();
-  JavaScript_file.close();
-
-  AsyncWebServerResponse *response = request->beginResponse(200, "text/javascript", JavaScript);
-  Add_Common_Headers(response);
-  request->send(response);
-}
-
-void Assign_URLs(void)
-{
-  Server.on("/", HTTP_GET, Handle_Root);
-
-  Server.on("/favicon.ico", HTTP_GET, Serve_FavIcon);
-  Server.on("/CSS", HTTP_GET, Serve_CSS);
-  Server.on("/JavaScript", HTTP_GET, Serve_JavaScript);
-
-  Server.on("/Scan_I2C", HTTP_GET, Handle_I2C_Scan);
-
-  Server.on("/Relays", HTTP_GET, Handle_Relays);
-
-  Server.on("/Morse_Code", HTTP_GET, Handle_Morse_Code);
-
-  Server.on("/Scan_WiFi", HTTP_GET, Handle_WiFi_Scan);
-
-  Server.on("/ReBoot", HTTP_GET, Handle_ReBoot);
-}
-
-void SetUp_Server(void)
-{
-  Assign_URLs();
-
-  Server.addHandler(&Events);
-
-  Server.onNotFound(Handle_Error_404);
-
-  Server.begin();
-}
-
-void Display_SSE_Count(void)
-{
-  LCD.setCursor(0, 1);
-  LCD.print("SSEs:");
-  LCD.print(SSEs);
+  pinMode(RELAY_2, OUTPUT);
+  digitalWrite(RELAY_2, HIGH);
 }
 
 void setup(void)
 {
-  Serial.begin(115200);
+  SetUp_Buzzer();
 
-  SPIFFS.begin();
+  ESP32.begin(ESP32_BAUD_RATE);
 
   Wire.begin();
-  // Serial.println(Scan_I2C());
+  ESP32.println();
+  ESP32.println(Scan_I2C());
 
-  SetUp_LCD();
-
-  SetUp_SG90();
-  RDM6300.begin(RDM6300_Pin);
-  Authenticate();
+  SPI.begin();
 
   SetUp_MPU9250();
 
@@ -999,97 +378,393 @@ void setup(void)
 
   SetUp_BME280();
 
-  SIM800L__NEO7M.begin(9600);
+  pinMode(RCWL0516, INPUT);
 
-  pinMode(RCWL0516_Pin, INPUT);
+  pinMode(FLAME_SENSOR, INPUT);
 
-  pinMode(Flame_Sensor_Pin, INPUT);
+  SetUp_RDM6300();
 
-  Slave_Board.begin(115200);
+  SetUp_RC522();
+
+  NEO7M.begin(NEO7M_BAUD_RATE);
+
+  SetUp_DS3231();
+
+  SetUp_SG90();
+
+  SetUp_BuiltIn_LED();
+
+  SetUp_RGB_LED();
+
+  SetUp_SSD1306();
 
   SetUp_Relays();
+}
 
-  Morse_Code.begin(Buzzer_LED_Pin);
+void Read_MPU9250(void)
+{
+  if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer)
+  {
 
-  SetUp_WiFi();
+    xyzFloat acceleration = MPU9250.getGValues();
+    xyzFloat gyro = MPU9250.getGyrValues();
+    xyzFloat magneto = MPU9250.getMagValues();
+    MPU9250_Readings.Acceleration.Resultant =
+        MPU9250.getResultantG(acceleration);
 
-  SetUp_Server();
+    MPU9250_Readings.Acceleration.X = acceleration.x;
+    MPU9250_Readings.Acceleration.Y = acceleration.y;
+    MPU9250_Readings.Acceleration.Z = acceleration.z;
 
-  SetUp_Work_LED();
+    MPU9250_Readings.Gyro.X = gyro.x;
+    MPU9250_Readings.Gyro.Y = gyro.y;
+    MPU9250_Readings.Gyro.Z = gyro.z;
 
-  LCD.clear();
-  LCD.setCursor(0, 0);
-  LCD.print("IP:");
-  LCD.print(WiFi.localIP());
-  Display_SSE_Count();
+    MPU9250_Readings.Magneto.X = magneto.x;
+    MPU9250_Readings.Magneto.Y = magneto.y;
+    MPU9250_Readings.Magneto.Z = magneto.z;
+
+    MPU9250_Readings.Temperature = MPU9250.getTemperature();
+  }
+  else
+  {
+    MPU9250_Readings.Acceleration.X = 0;
+    MPU9250_Readings.Acceleration.Y = 0;
+    MPU9250_Readings.Acceleration.Z = 0;
+    MPU9250_Readings.Acceleration.Resultant = 0;
+
+    MPU9250_Readings.Gyro.X = 0;
+    MPU9250_Readings.Gyro.Y = 0;
+    MPU9250_Readings.Gyro.Z = 0;
+
+    MPU9250_Readings.Magneto.X = 0;
+    MPU9250_Readings.Magneto.Y = 0;
+    MPU9250_Readings.Magneto.Z = 0;
+
+    MPU9250_Readings.Temperature = 0;
+  }
+}
+
+void Read_BH1750(void)
+{
+  if (I2C_Status.BH1750 && bh1750.measurementReady())
+  {
+    Light = bh1750.readLightLevel();
+  }
+  else
+  {
+    Light = 0;
+  }
+}
+
+void Read_BME280(void)
+{
+  if (I2C_Status.BME280)
+  {
+    BME280_Readings.Temperature = bme280.getTemperature();
+    BME280_Readings.Humidity = bme280.getHumidity();
+    BME280_Readings.Pressure = bme280.getPressure();
+    BME280_Readings.Altitude = bme280.calcAltitude(BME280_Readings.Pressure);
+  }
+  else
+  {
+    BME280_Readings.Temperature = 0;
+    BME280_Readings.Humidity = 0;
+    BME280_Readings.Pressure = 0;
+    BME280_Readings.Altitude = 0;
+  }
+}
+
+void Read_MQ_Sensors(void)
+{
+  MQs_Readings.MQ2 = analogRead(MQ2);
+  MQs_Readings.MQ3 = analogRead(MQ3);
+  MQs_Readings.MQ4 = analogRead(MQ4);
+  MQs_Readings.MQ5 = analogRead(MQ5);
+  MQs_Readings.MQ6 = analogRead(MQ6);
+  MQs_Readings.MQ7 = analogRead(MQ7);
+  MQs_Readings.MQ8 = analogRead(MQ8);
+  MQs_Readings.MQ9 = analogRead(MQ9);
+  MQs_Readings.MQ135 = analogRead(MQ135);
+}
+
+void Read_NEO7M(void)
+{
+  while (NEO7M.available())
+  {
+    GPS.encode(NEO7M.read());
+  }
+
+  NEO7M_Readings.Satellites = GPS.satellites.value();
+  NEO7M_Readings.Latitude = GPS.location.lat();
+  NEO7M_Readings.Longitude = GPS.location.lng();
+  NEO7M_Readings.Speed = GPS.speed.kmph();
+  NEO7M_Readings.Course = GPS.course.deg();
+  NEO7M_Readings.Altitude = GPS.altitude.meters();
+  NEO7M_Readings.HDOP = GPS.hdop.value();
+}
+
+void Read_RC522(void)
+{
+  RC522.PICC_IsNewCardPresent(); /* Needed to read. */
+
+  if (RC522.PICC_ReadCardSerial())
+  {
+    MFRC522::PICC_Type PICC_Type = RC522.PICC_GetType(RC522.uid.sak);
+    RC522_Reading.PICC_Type = RC522.PICC_GetTypeName(PICC_Type);
+
+    if (PICC_Type != MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type != MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type != MFRC522::PICC_TYPE_MIFARE_4K)
+    {
+      RC522_Reading.MIFARE_Classic_Validity = false;
+
+      RC522_Reading.UID = 0;
+    }
+    else
+    {
+      RC522_Reading.MIFARE_Classic_Validity = true;
+
+      RC522_Reading.UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24) | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16) | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8) | static_cast<unsigned long>(RC522.uid.uidByte[3]);
+
+      RC522.PICC_HaltA();
+      RC522.PCD_StopCrypto1();
+    }
+  }
+  else
+  {
+    RC522_Reading.UID = 0;
+  }
+}
+
+void Read_DS3231(void)
+{
+  DateTime now = DS3231.now();
+
+  DS3231_OutPut.UNIX_Time = now.unixtime();
+
+  DS3231_OutPut.Year = now.year();
+  DS3231_OutPut.Month = now.month();
+  DS3231_OutPut.Day = now.day();
+  DS3231_OutPut.Week_Day = now.dayOfTheWeek();
+
+  DS3231_OutPut.Hour = now.hour();
+  DS3231_OutPut.Minute = now.minute();
+  DS3231_OutPut.Second = now.second();
+
+  DS3231_OutPut.Temperature = DS3231.getTemperature();
+}
+
+void Send_JSON(void)
+{
+  JsonDocument Readings_JSON;
+
+  JsonDocument Acceleration_JSON;
+  Acceleration_JSON["X"] = MPU9250_Readings.Acceleration.X;
+  Acceleration_JSON["Y"] = MPU9250_Readings.Acceleration.Y;
+  Acceleration_JSON["Z"] = MPU9250_Readings.Acceleration.Z;
+  Acceleration_JSON["Resultant"] =
+      MPU9250_Readings.Acceleration.Resultant;
+
+  JsonDocument Gyro_JSON;
+  Gyro_JSON["X"] = MPU9250_Readings.Gyro.X;
+  Gyro_JSON["Y"] = MPU9250_Readings.Gyro.Y;
+  Gyro_JSON["Z"] = MPU9250_Readings.Gyro.Z;
+
+  JsonDocument Magneto_JSON;
+  Magneto_JSON["X"] = MPU9250_Readings.Magneto.X;
+  Magneto_JSON["Y"] = MPU9250_Readings.Magneto.Y;
+  Magneto_JSON["Z"] = MPU9250_Readings.Magneto.Z;
+
+  JsonDocument MPU9250_JSON;
+  MPU9250_JSON["Acceleration"] = Acceleration_JSON;
+  MPU9250_JSON["Gyro"] = Gyro_JSON;
+  MPU9250_JSON["Magneto"] = Magneto_JSON;
+  MPU9250_JSON["Temperature"] = MPU9250_Readings.Temperature;
+
+  Readings_JSON["MPU9250"] = MPU9250_JSON;
+
+  Readings_JSON["BH1750"] = Light;
+
+  JsonDocument BME280_JSON;
+  BME280_JSON["Temperature"] = BME280_Readings.Temperature;
+  BME280_JSON["Humidity"] = BME280_Readings.Humidity;
+  BME280_JSON["Pressure"] = BME280_Readings.Pressure;
+  BME280_JSON["Altitude"] = BME280_Readings.Altitude;
+  Readings_JSON["BME280"] = BME280_JSON;
+
+  Readings_JSON["MQ2"] = MQs_Readings.MQ2;
+  Readings_JSON["MQ3"] = MQs_Readings.MQ3;
+  Readings_JSON["MQ4"] = MQs_Readings.MQ4;
+  Readings_JSON["MQ5"] = MQs_Readings.MQ5;
+  Readings_JSON["MQ6"] = MQs_Readings.MQ6;
+  Readings_JSON["MQ7"] = MQs_Readings.MQ7;
+  Readings_JSON["MQ8"] = MQs_Readings.MQ8;
+  Readings_JSON["MQ9"] = MQs_Readings.MQ9;
+  Readings_JSON["MQ135"] = MQs_Readings.MQ135;
+
+  Readings_JSON["RCWL0516"] = BlackBody_Motion;
+
+  Readings_JSON["Flame"] = Flame;
+
+  Readings_JSON["RDM6300"] = RDM6300_Reading;
+
+  JsonDocument RC522_JSON;
+  RC522_JSON["PICC_Type"] = RC522_Reading.PICC_Type;
+  RC522_JSON["MIFARE_Classic_Validity"] = RC522_Reading.MIFARE_Classic_Validity;
+  RC522_JSON["UID"] = RC522_Reading.UID;
+  Readings_JSON["RC522"] = RC522_JSON;
+
+  JsonDocument NEO7M_JSON;
+  NEO7M_JSON["Satellites"] = NEO7M_Readings.Satellites;
+  NEO7M_JSON["Latitude"] = NEO7M_Readings.Latitude;
+  NEO7M_JSON["Longitude"] = NEO7M_Readings.Longitude;
+  NEO7M_JSON["Speed"] = NEO7M_Readings.Speed;
+  NEO7M_JSON["Course"] = NEO7M_Readings.Course;
+  NEO7M_JSON["Altitude"] = NEO7M_Readings.Altitude;
+  NEO7M_JSON["HDOP"] = NEO7M_Readings.HDOP;
+  Readings_JSON["NEO7M"] = NEO7M_JSON;
+
+  JsonDocument DS3231_JSON;
+  DS3231_JSON["UNIX_Time"] = DS3231_OutPut.UNIX_Time;
+  DS3231_JSON["Year"] = DS3231_OutPut.Year;
+  DS3231_JSON["Month"] = DS3231_OutPut.Month;
+  DS3231_JSON["Day"] = DS3231_OutPut.Day;
+  DS3231_JSON["Week_Day"] = DS3231_OutPut.Week_Day;
+  DS3231_JSON["Hour"] = DS3231_OutPut.Hour;
+  DS3231_JSON["Minute"] = DS3231_OutPut.Minute;
+  DS3231_JSON["Second"] = DS3231_OutPut.Second;
+  DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
+  Readings_JSON["DS3231"] = DS3231_JSON;
+
+  Readings_JSON["UpTime"] = millis();
+
+  ESP32.println();
+  serializeJson(Readings_JSON, ESP32);
+  ESP32.flush();
+}
+
+void Receive_JSON(void)
+{
+  while (ESP32.available())
+  {
+    JsonDocument ESP32_JSON;
+
+    DeserializationError ESP32_JSON_Error = deserializeJson(ESP32_JSON, ESP32);
+
+    if (ESP32_JSON_Error == DeserializationError::Ok)
+    {
+      digitalWrite(LED_BUILTIN, HIGH);
+
+      if (ESP32_JSON.containsKey("Reset_Arduino_Mega_2560"))
+      {
+        bool If_Reset_Arduino_Mega_2560 = ESP32_JSON["Reset_Arduino_Mega_2560"].as<bool>();
+        if (If_Reset_Arduino_Mega_2560)
+        {
+          Reset_Arduino_Mega_2560();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("SG90_Position"))
+      {
+        unsigned int SG90_Position = ESP32_JSON["SG90_Position"].as<unsigned int>();
+
+        SG90.write(SG90_Position);
+      }
+
+      if (ESP32_JSON.containsKey("Detach_SG90"))
+      {
+        bool If_Detach_SG90 = ESP32_JSON["Detach_SG90"].as<bool>();
+
+        if (If_Detach_SG90)
+        {
+          SG90.detach();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Attach_SG90"))
+      {
+        bool If_Attach_SG90 = ESP32_JSON["Attach_SG90"].as<bool>();
+
+        if (If_Attach_SG90)
+        {
+          Attach_SG90();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Relay_1"))
+      {
+        bool Relay_1_State = ESP32_JSON["Relay_1"].as<bool>();
+        if (Relay_1_State)
+        {
+          digitalWrite(RELAY_1, LOW);
+        }
+        else if (!Relay_1_State)
+        {
+          digitalWrite(RELAY_1, HIGH);
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Relay_2"))
+      {
+        bool Relay_2_State = ESP32_JSON["Relay_2"].as<bool>();
+        if (Relay_2_State)
+        {
+          digitalWrite(RELAY_2, LOW);
+        }
+        else if (!Relay_2_State)
+        {
+          digitalWrite(RELAY_2, HIGH);
+        }
+      }
+
+      digitalWrite(LED_BUILTIN, LOW);
+    }
+  }
 }
 
 void loop(void)
 {
-  if ((millis() - Last_SSE_Time) > SSE_Delay)
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  Read_MPU9250();
+
+  Read_BH1750();
+
+  Read_BME280();
+
+  Read_MQ_Sensors();
+
+  BlackBody_Motion = digitalRead(RCWL0516);
+
+  Flame = !digitalRead(FLAME_SENSOR);
+
+  Read_NEO7M();
+
+  RDM6300_Reading = RDM6300.get_tag_id();
+
+  Read_RC522();
+
+  Read_DS3231();
+
+  digitalWrite(LED_BUILTIN, LOW);
+
+  Send_JSON();
+
+  while (!ESP32.available())
   {
-    digitalWrite(Work_LED_Pin, HIGH);
-
-    JsonDocument Readings;
-
-    Get_Readings();
-
-    Readings["Acceleration_X"] = String(Acceleration_X);
-    Readings["Acceleration_Y"] = String(Acceleration_Y);
-    Readings["Acceleration_Z"] = String(Acceleration_Z);
-    Readings["Resultant_Acceleration"] = String(Resultant_Acceleration);
-
-    Readings["Gyro_X"] = String(Gyro_X);
-    Readings["Gyro_Y"] = String(Gyro_Y);
-    Readings["Gyro_Z"] = String(Gyro_Z);
-
-    Readings["Magneto_X"] = String(Magneto_X);
-    Readings["Magneto_Y"] = String(Magneto_Y);
-    Readings["Magneto_Z"] = String(Magneto_Z);
-
-    Readings["Light"] = String(Light);
-
-    Readings["Temperature_MPU9250"] = String(Temperature_MPU9250);
-
-    Readings["Temperature_BME280"] = String(Temperature_BME280);
-
-    Readings["Humidity"] = String(Humidity);
-    Readings["Pressure"] = String(Pressure);
-    Readings["Altitude_BME280"] = String(Altitude_BME280);
-
-    Readings["Latitude"] = String(Latitude);
-    Readings["Longitude"] = String(Longitude);
-    Readings["Speed"] = String(Speed);
-    Readings["Course"] = String(Course);
-    Readings["Altitude_GPS"] = String(Altitude_GPS);
-    Readings["Satellites"] = String(Satellites);
-    Readings["HDOP"] = String(HDOP);
-
-    Readings["BlackBody_Motion"] = String(BlackBody_Motion);
-
-    Readings["Flame"] = String(Flame);
-
-    Readings["MQ_2"] = String(MQ_2);
-    Readings["MQ_3"] = String(MQ_3);
-    Readings["MQ_4"] = String(MQ_4);
-    Readings["MQ_5"] = String(MQ_5);
-    Readings["MQ_6"] = String(MQ_6);
-    Readings["MQ_7"] = String(MQ_7);
-    Readings["MQ_8"] = String(MQ_8);
-    Readings["MQ_9"] = String(MQ_9);
-    Readings["MQ_135"] = String(MQ_135);
-
-    Readings["Slave_UpTime"] = String(Slave_UpTime);
-
-    String JSON_String;
-    serializeJson(Readings, JSON_String);
-
-    Last_SSE_Time = millis();
-    Events.send(JSON_String.c_str(), "json", Last_SSE_Time);
-
-    SSEs++;
-    Display_SSE_Count();
-
-    digitalWrite(Work_LED_Pin, LOW);
+    delay(10);
   }
+
+  Receive_JSON();
 }
+
+// TODO:
+// Set Buzzer on I2C Error of DS3231
+// Set Buzzer on Serial Initialization Failures
+// NEO7M Physical Test
+// Set Usage of RGB LED
+// Buy IR Flame Sensor
+// RCWL0516 Interference
+// SIM900A
+// MAX30102
+// DSM501A
+// DS3231 Alarm
