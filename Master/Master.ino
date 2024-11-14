@@ -58,6 +58,13 @@ Programmer: "AVR ISP"
 #define SG90_PIN 7
 #define SG90_STARTUP_POSITION 180
 
+#define ULN2003_1 28
+#define ULN2003_2 30
+#define ULN2003_3 32
+#define ULN2003_4 34
+#define ULN2003_STEPS_PER_REVOLUTION 2038
+#define ULN2003_SPEED 2
+
 #define SSD1306_ADDRESS 0x3C
 #define SSD1306_RESET -1
 #define SSD1306_WIDTH 128
@@ -92,11 +99,13 @@ RTC_DS3231 DS3231;
 
 Servo SG90;
 
+Stepper ULN2003(ULN2003_STEPS_PER_REVOLUTION, ULN2003_1, ULN2003_2, ULN2003_3, ULN2003_4);
+
 Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
 
 struct I2C_Status_Type
 {
-  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280, SSD1306;
+  boolean MPU9250, MPU9250_Magnetometer, BH1750, BME280, DS3231, SSD1306;
 };
 I2C_Status_Type I2C_Status;
 
@@ -129,6 +138,12 @@ struct BME280_Readings_Type
 };
 BME280_Readings_Type BME280_Readings;
 
+struct UART_Status_Type
+{
+  boolean RDM6300, NEO7M, ESP32;
+};
+UART_Status_Type UART_Status;
+
 struct MQs_Readings_Type
 {
   float MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135;
@@ -156,7 +171,8 @@ RC522_Reading_Type RC522_Reading;
 
 struct DS3231_OutPut_Type
 {
-  int UNIX_Time, Year, Month, Day, Week_Day, Hour, Minute, Second;
+  long UNIX_Time;
+  int Year, Month, Day, Week_Day, Hour, Minute, Second;
   float Temperature;
 };
 DS3231_OutPut_Type DS3231_OutPut;
@@ -169,6 +185,20 @@ void SetUp_Buzzer(void)
 {
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
+}
+
+void SetUp_ESP32(void)
+{
+  ESP32.begin(ESP32_BAUD_RATE);
+  if (ESP32)
+  {
+    UART_Status.ESP32 = true;
+  }
+  else
+  {
+    UART_Status.ESP32 = false;
+    digitalWrite(BUZZER, HIGH);
+  }
 }
 
 String Scan_I2C(void)
@@ -283,7 +313,17 @@ void SetUp_BME280(void)
 void SetUp_RDM6300(void)
 {
   RDM6300_UART.begin(RDM6300_BAUDRATE);
-  RDM6300.begin(&RDM6300_UART);
+  if (RDM6300_UART)
+  {
+    UART_Status.RDM6300 = true;
+
+    RDM6300.begin(&RDM6300_UART);
+  }
+  else
+  {
+    UART_Status.RDM6300 = false;
+    digitalWrite(BUZZER, HIGH);
+  }
 }
 
 void SetUp_RC522(void)
@@ -293,6 +333,40 @@ void SetUp_RC522(void)
   for (byte i = 0; i < 6; i++)
   {
     RC522_Key.keyByte[i] = 0xFF;
+  }
+}
+
+void SetUp_NEO7M(void)
+{
+  NEO7M.begin(NEO7M_BAUD_RATE);
+  if (NEO7M)
+  {
+    UART_Status.NEO7M = true;
+  }
+  else
+  {
+    UART_Status.NEO7M = false;
+    digitalWrite(BUZZER, HIGH);
+  }
+}
+
+void SetUp_DS3231(void)
+{
+  if (DS3231.begin())
+  {
+    I2C_Status.DS3231 = true;
+
+    DS3231.disable32K();
+  }
+  else
+  {
+    I2C_Status.DS3231 = false;
+    digitalWrite(BUZZER, HIGH);
+  }
+
+  if (DS3231.lostPower())
+  {
+    DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
@@ -307,14 +381,9 @@ void SetUp_SG90(void)
   SG90.write(SG90_STARTUP_POSITION);
 }
 
-void SetUp_DS3231(void)
+void SetUp_ULN2003()
 {
-  DS3231.begin();
-
-  if (DS3231.lostPower())
-  {
-    DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  }
+  ULN2003.setSpeed(ULN2003_SPEED);
 }
 
 void SetUp_BuiltIn_LED(void)
@@ -364,7 +433,7 @@ void setup(void)
 {
   SetUp_Buzzer();
 
-  ESP32.begin(ESP32_BAUD_RATE);
+  SetUp_ESP32();
 
   Wire.begin();
   ESP32.println();
@@ -386,11 +455,13 @@ void setup(void)
 
   SetUp_RC522();
 
-  NEO7M.begin(NEO7M_BAUD_RATE);
+  SetUp_NEO7M();
 
   SetUp_DS3231();
 
   SetUp_SG90();
+
+  SetUp_ULN2003();
 
   SetUp_BuiltIn_LED();
 
@@ -690,6 +761,13 @@ void Receive_JSON(void)
         }
       }
 
+      if (ESP32_JSON.containsKey("ULN2003_Steps"))
+      {
+        signed int ULN2003_Steps = ESP32_JSON["ULN2003_Steps"].as<signed int>();
+
+        ULN2003.step(ULN2003_Steps);
+      }
+
       if (ESP32_JSON.containsKey("Relay_1"))
       {
         bool Relay_1_State = ESP32_JSON["Relay_1"].as<bool>();
@@ -758,8 +836,6 @@ void loop(void)
 }
 
 // TODO:
-// Set Buzzer on I2C Error of DS3231
-// Set Buzzer on Serial Initialization Failures
 // NEO7M Physical Test
 // Set Usage of RGB LED
 // Buy IR Flame Sensor
