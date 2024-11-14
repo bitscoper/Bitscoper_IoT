@@ -55,6 +55,8 @@ Programmer: "AVR ISP"
 #define NEO7M Serial2
 #define NEO7M_BAUD_RATE 9600
 
+#define DS3231_INTERRUPT 2
+
 #define SG90_PIN 7
 #define SG90_STARTUP_POSITION 180
 
@@ -171,9 +173,9 @@ RC522_Reading_Type RC522_Reading;
 
 struct DS3231_OutPut_Type
 {
-  long UNIX_Time;
-  int Year, Month, Day, Week_Day, Hour, Minute, Second;
+  long UNIX_Time, Alarm_1_Time, Alarm_2_Time;
   float Temperature;
+  String Alarm_1_Mode, Alarm_2_Mode;
 };
 DS3231_OutPut_Type DS3231_OutPut;
 
@@ -350,6 +352,18 @@ void SetUp_NEO7M(void)
   }
 }
 
+void On_Alarm(void)
+{
+  if (DS3231.alarmFired(1))
+  {
+    ESP32.println("Alarm 1");
+  }
+  if (DS3231.alarmFired(2))
+  {
+    ESP32.println("Alarm 2");
+  }
+}
+
 void SetUp_DS3231(void)
 {
   if (DS3231.begin())
@@ -357,16 +371,20 @@ void SetUp_DS3231(void)
     I2C_Status.DS3231 = true;
 
     DS3231.disable32K();
+    DS3231.writeSqwPinMode(DS3231_OFF);
+
+    if (DS3231.lostPower())
+    {
+      DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
+
+    pinMode(DS3231_INTERRUPT, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(DS3231_INTERRUPT), On_Alarm, FALLING);
   }
   else
   {
     I2C_Status.DS3231 = false;
     digitalWrite(BUZZER, HIGH);
-  }
-
-  if (DS3231.lostPower())
-  {
-    DS3231.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 }
 
@@ -612,16 +630,53 @@ void Read_DS3231(void)
 
   DS3231_OutPut.UNIX_Time = now.unixtime();
 
-  DS3231_OutPut.Year = now.year();
-  DS3231_OutPut.Month = now.month();
-  DS3231_OutPut.Day = now.day();
-  DS3231_OutPut.Week_Day = now.dayOfTheWeek();
-
-  DS3231_OutPut.Hour = now.hour();
-  DS3231_OutPut.Minute = now.minute();
-  DS3231_OutPut.Second = now.second();
-
   DS3231_OutPut.Temperature = DS3231.getTemperature();
+
+  DS3231_OutPut.Alarm_1_Time = DS3231.getAlarm1().unixtime();
+  Ds3231Alarm1Mode Alarm_1_Mode = DS3231.getAlarm1Mode();
+  if (Alarm_1_Mode == DS3231_A1_PerSecond)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Per Second";
+  }
+  else if (Alarm_1_Mode == DS3231_A1_Second)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Second";
+  }
+  else if (Alarm_1_Mode == DS3231_A1_Minute)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Minute";
+  }
+  else if (Alarm_1_Mode == DS3231_A1_Hour)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Hour";
+  }
+  else if (Alarm_1_Mode == DS3231_A1_Date)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Date";
+  }
+  else if (Alarm_1_Mode == DS3231_A1_Day)
+  {
+    DS3231_OutPut.Alarm_1_Mode = "Day";
+  }
+
+  DS3231_OutPut.Alarm_2_Time = DS3231.getAlarm2().unixtime();
+  Ds3231Alarm2Mode Alarm_2_Mode = DS3231.getAlarm2Mode();
+  if (Alarm_2_Mode == DS3231_A2_Minute)
+  {
+    DS3231_OutPut.Alarm_2_Mode = "Minute";
+  }
+  else if (Alarm_2_Mode == DS3231_A2_Hour)
+  {
+    DS3231_OutPut.Alarm_2_Mode = "Hour";
+  }
+  else if (Alarm_2_Mode == DS3231_A2_Date)
+  {
+    DS3231_OutPut.Alarm_2_Mode = "Date";
+  }
+  else if (Alarm_2_Mode == DS3231_A2_Day)
+  {
+    DS3231_OutPut.Alarm_2_Mode = "Day";
+  }
 }
 
 void Send_JSON(void)
@@ -696,14 +751,11 @@ void Send_JSON(void)
 
   JsonDocument DS3231_JSON;
   DS3231_JSON["UNIX_Time"] = DS3231_OutPut.UNIX_Time;
-  DS3231_JSON["Year"] = DS3231_OutPut.Year;
-  DS3231_JSON["Month"] = DS3231_OutPut.Month;
-  DS3231_JSON["Day"] = DS3231_OutPut.Day;
-  DS3231_JSON["Week_Day"] = DS3231_OutPut.Week_Day;
-  DS3231_JSON["Hour"] = DS3231_OutPut.Hour;
-  DS3231_JSON["Minute"] = DS3231_OutPut.Minute;
-  DS3231_JSON["Second"] = DS3231_OutPut.Second;
   DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
+  DS3231_JSON["Alarm_1_Time"] = DS3231_OutPut.Alarm_1_Time;
+  DS3231_JSON["Alarm_1_Mode"] = DS3231_OutPut.Alarm_1_Mode;
+  DS3231_JSON["Alarm_2_Time"] = DS3231_OutPut.Alarm_2_Time;
+  DS3231_JSON["Alarm_2_Mode"] = DS3231_OutPut.Alarm_2_Mode;
   Readings_JSON["DS3231"] = DS3231_JSON;
 
   Readings_JSON["UpTime"] = millis();
@@ -732,6 +784,82 @@ void Receive_JSON(void)
         {
           Reset_Arduino_Mega_2560();
         }
+      }
+
+      if (ESP32_JSON.containsKey("Set_DS3231_Time"))
+      {
+        long UNIX_Time = ESP32_JSON["Set_DS3231_Time"].as<long>();
+
+        DateTime Time = DateTime(UNIX_Time);
+
+        DS3231.adjust(Time);
+      }
+
+      if (ESP32_JSON.containsKey("Set_DS3231_Alarm"))
+      {
+        unsigned int Number = ESP32_JSON["Set_DS3231_Alarm"]["Number"].as<unsigned int>();
+        long UNIX_Time = ESP32_JSON["Set_DS3231_Alarm"]["UNIX_Time"].as<long>();
+        String Match = ESP32_JSON["Set_DS3231_Alarm"]["Match"];
+
+        DateTime Time = DateTime(UNIX_Time);
+
+        if (Number == 1)
+        {
+          DS3231.clearAlarm(1);
+
+          if (Match == "Per Second")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_PerSecond);
+          }
+          else if (Match == "Second")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_Second);
+          }
+          else if (Match == "Minute")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_Minute);
+          }
+          else if (Match == "Hour")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_Hour);
+          }
+          else if (Match == "Date")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_Date);
+          }
+          else if (Match == "Day")
+          {
+            DS3231.setAlarm1(Time, DS3231_A1_Day);
+          }
+        }
+        else if (Number == 2)
+        {
+          DS3231.clearAlarm(2);
+
+          if (Match == "Minute")
+          {
+            DS3231.setAlarm2(Time, DS3231_A2_Minute);
+          }
+          else if (Match == "Hour")
+          {
+            DS3231.setAlarm2(Time, DS3231_A2_Hour);
+          }
+          else if (Match == "Date")
+          {
+            DS3231.setAlarm2(Time, DS3231_A2_Date);
+          }
+          else if (Match == "Day")
+          {
+            DS3231.setAlarm2(Time, DS3231_A2_Day);
+          }
+        }
+      }
+
+      if (ESP32_JSON.containsKey("Clear_DS3231_Alarm"))
+      {
+        unsigned int Number = ESP32_JSON["Clear_DS3231_Alarm"].as<unsigned int>();
+
+        DS3231.clearAlarm(Number);
       }
 
       if (ESP32_JSON.containsKey("SG90_Position"))
@@ -843,4 +971,4 @@ void loop(void)
 // SIM900A
 // MAX30102
 // DSM501A
-// DS3231 Alarm
+// Test DS3231 Setting Time and Alarm
