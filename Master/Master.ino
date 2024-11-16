@@ -9,7 +9,6 @@ Programmer: "AVR ISP"
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <SoftwareSerial.h>
 
 #include <MPU9250_WE.h>
 
@@ -48,12 +47,12 @@ Programmer: "AVR ISP"
 
 #define FLAME_SENSOR 22
 
-#define RDM6300_UART Serial3
+#define RDM6300_UART Serial2
 
 #define RC522_SS 53
 #define RC522_RESET 5
 
-#define NEO7M Serial2
+#define NEO7M Serial1
 #define NEO7M_BAUD_RATE 9600
 
 #define DS3231_INTERRUPT 2
@@ -82,8 +81,7 @@ Programmer: "AVR ISP"
 #define RELAY_1 23
 #define RELAY_2 25
 
-#define SoftwareSerial_RX 51
-#define SoftwareSerial_TX 50
+#define SIM900A Serial3
 #define SIM900A_BAUD_RATE 9600
 
 #define ESP32 Serial
@@ -109,8 +107,6 @@ Servo SG90;
 Stepper ULN2003(ULN2003_STEPS_PER_REVOLUTION, ULN2003_1, ULN2003_2, ULN2003_3, ULN2003_4);
 
 Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
-
-SoftwareSerial SIM900A(SoftwareSerial_RX, SoftwareSerial_TX);
 
 struct I2C_Status_Type
 {
@@ -431,19 +427,23 @@ void SetUp_RGB_LED(void)
 
 void SetUp_SSD1306(void)
 {
-  if (!SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS))
+  if (SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS))
+  {
+    I2C_Status.SSD1306 = true;
+
+    SSD1306.clearDisplay();
+
+    SSD1306.setTextSize(1);
+    SSD1306.setTextColor(SSD1306_WHITE);
+    SSD1306.setCursor(25, 0);
+    SSD1306.println(F("Bitscoper IoT"));
+    SSD1306.display();
+  }
+  else
   {
     I2C_Status.SSD1306 = false;
     digitalWrite(BUZZER, HIGH);
   }
-
-  SSD1306.clearDisplay();
-
-  SSD1306.setTextSize(1);
-  SSD1306.setTextColor(SSD1306_WHITE);
-  SSD1306.setCursor(25, 0);
-  SSD1306.println(F("Bitscoper IoT"));
-  SSD1306.display();
 }
 
 void SetUp_Relays()
@@ -460,6 +460,14 @@ void SetUp_SIM900A(void)
   SIM900A.begin(SIM900A_BAUD_RATE);
   if (SIM900A)
   {
+    SIM900A.print("ATE0\r\n"); /* Disable Command Echo */
+
+    while (!SIM900A.available())
+    {
+    };
+
+    SIM900A.print("AT+CMEE=2\r\n"); /* Verbose Error */
+
     UART_Status.SIM900A = true;
   }
   else
@@ -650,57 +658,74 @@ void Read_RC522(void)
 
 void Read_DS3231(void)
 {
-  DS3231_OutPut.UNIX_Time = DS3231.now().unixtime();
+  if (I2C_Status.DS3231)
+  {
+    DS3231_OutPut.UNIX_Time = DS3231.now().unixtime();
 
-  DS3231_OutPut.Temperature = DS3231.getTemperature();
+    DS3231_OutPut.Temperature = DS3231.getTemperature();
 
-  DS3231_OutPut.Alarm_1_Time = DS3231.getAlarm1().unixtime();
-  Ds3231Alarm1Mode Alarm_1_Mode = DS3231.getAlarm1Mode();
-  if (Alarm_1_Mode == DS3231_A1_PerSecond)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Per Second";
-  }
-  else if (Alarm_1_Mode == DS3231_A1_Second)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Second";
-  }
-  else if (Alarm_1_Mode == DS3231_A1_Minute)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Minute";
-  }
-  else if (Alarm_1_Mode == DS3231_A1_Hour)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Hour";
-  }
-  else if (Alarm_1_Mode == DS3231_A1_Date)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Date";
-  }
-  else if (Alarm_1_Mode == DS3231_A1_Day)
-  {
-    DS3231_OutPut.Alarm_1_Mode = "Day";
-  }
-  DS3231_OutPut.Is_Alarm_1_Fired = DS3231.alarmFired(1);
+    DS3231_OutPut.Alarm_1_Time = DS3231.getAlarm1().unixtime();
+    Ds3231Alarm1Mode Alarm_1_Mode = DS3231.getAlarm1Mode();
+    if (Alarm_1_Mode == DS3231_A1_PerSecond)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Per Second";
+    }
+    else if (Alarm_1_Mode == DS3231_A1_Second)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Second";
+    }
+    else if (Alarm_1_Mode == DS3231_A1_Minute)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Minute";
+    }
+    else if (Alarm_1_Mode == DS3231_A1_Hour)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Hour";
+    }
+    else if (Alarm_1_Mode == DS3231_A1_Date)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Date";
+    }
+    else if (Alarm_1_Mode == DS3231_A1_Day)
+    {
+      DS3231_OutPut.Alarm_1_Mode = "Day";
+    }
+    DS3231_OutPut.Is_Alarm_1_Fired = DS3231.alarmFired(1);
 
-  DS3231_OutPut.Alarm_2_Time = DS3231.getAlarm2().unixtime();
-  Ds3231Alarm2Mode Alarm_2_Mode = DS3231.getAlarm2Mode();
-  if (Alarm_2_Mode == DS3231_A2_Minute)
-  {
-    DS3231_OutPut.Alarm_2_Mode = "Minute";
+    DS3231_OutPut.Alarm_2_Time = DS3231.getAlarm2().unixtime();
+    Ds3231Alarm2Mode Alarm_2_Mode = DS3231.getAlarm2Mode();
+    if (Alarm_2_Mode == DS3231_A2_Minute)
+    {
+      DS3231_OutPut.Alarm_2_Mode = "Minute";
+    }
+    else if (Alarm_2_Mode == DS3231_A2_Hour)
+    {
+      DS3231_OutPut.Alarm_2_Mode = "Hour";
+    }
+    else if (Alarm_2_Mode == DS3231_A2_Date)
+    {
+      DS3231_OutPut.Alarm_2_Mode = "Date";
+    }
+    else if (Alarm_2_Mode == DS3231_A2_Day)
+    {
+      DS3231_OutPut.Alarm_2_Mode = "Day";
+    }
+    DS3231_OutPut.Is_Alarm_2_Fired = DS3231.alarmFired(2);
   }
-  else if (Alarm_2_Mode == DS3231_A2_Hour)
+  else
   {
-    DS3231_OutPut.Alarm_2_Mode = "Hour";
+    DS3231_OutPut.UNIX_Time = 0;
+
+    DS3231_OutPut.Temperature = 0;
+
+    DS3231_OutPut.Alarm_1_Time = 0;
+    DS3231_OutPut.Alarm_1_Mode = "";
+    DS3231_OutPut.Is_Alarm_1_Fired = false;
+
+    DS3231_OutPut.Alarm_2_Time = 0;
+    DS3231_OutPut.Alarm_2_Mode = "";
+    DS3231_OutPut.Is_Alarm_2_Fired = false;
   }
-  else if (Alarm_2_Mode == DS3231_A2_Date)
-  {
-    DS3231_OutPut.Alarm_2_Mode = "Date";
-  }
-  else if (Alarm_2_Mode == DS3231_A2_Day)
-  {
-    DS3231_OutPut.Alarm_2_Mode = "Day";
-  }
-  DS3231_OutPut.Is_Alarm_2_Fired = DS3231.alarmFired(2);
 }
 
 void Send_JSON(void)
@@ -955,9 +980,14 @@ void Receive_JSON(void)
         SIM900A.print(SIM900A_AT);
         SIM900A.print("\r\n");
 
+        while (!SIM900A.available())
+        {
+        };
+
         while (SIM900A.available())
         {
-          ESP32.print(SIM900A.read());
+          char Character = SIM900A.read();
+          ESP32.print(Character);
         }
       }
 
