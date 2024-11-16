@@ -9,6 +9,7 @@ Programmer: "AVR ISP"
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
+#include <SoftwareSerial.h>
 
 #include <MPU9250_WE.h>
 
@@ -81,6 +82,10 @@ Programmer: "AVR ISP"
 #define RELAY_1 23
 #define RELAY_2 25
 
+#define SoftwareSerial_RX 51
+#define SoftwareSerial_TX 50
+#define SIM900A_BAUD_RATE 9600
+
 #define ESP32 Serial
 #define ESP32_BAUD_RATE 115200
 
@@ -104,6 +109,8 @@ Servo SG90;
 Stepper ULN2003(ULN2003_STEPS_PER_REVOLUTION, ULN2003_1, ULN2003_2, ULN2003_3, ULN2003_4);
 
 Adafruit_SSD1306 SSD1306(SSD1306_WIDTH, SSD1306_HEIGHT, &Wire, SSD1306_RESET);
+
+SoftwareSerial SIM900A(SoftwareSerial_RX, SoftwareSerial_TX);
 
 struct I2C_Status_Type
 {
@@ -142,7 +149,7 @@ BME280_Readings_Type BME280_Readings;
 
 struct UART_Status_Type
 {
-  boolean RDM6300, NEO7M, ESP32;
+  boolean RDM6300, NEO7M, SIM900A, ESP32;
 };
 UART_Status_Type UART_Status;
 
@@ -176,6 +183,7 @@ struct DS3231_OutPut_Type
   long UNIX_Time, Alarm_1_Time, Alarm_2_Time;
   float Temperature;
   String Alarm_1_Mode, Alarm_2_Mode;
+  bool Is_Alarm_1_Fired, Is_Alarm_2_Fired;
 };
 DS3231_OutPut_Type DS3231_OutPut;
 
@@ -447,6 +455,20 @@ void SetUp_Relays()
   digitalWrite(RELAY_2, HIGH);
 }
 
+void SetUp_SIM900A(void)
+{
+  SIM900A.begin(SIM900A_BAUD_RATE);
+  if (SIM900A)
+  {
+    UART_Status.SIM900A = true;
+  }
+  else
+  {
+    UART_Status.SIM900A = false;
+    digitalWrite(BUZZER, HIGH);
+  }
+}
+
 void setup(void)
 {
   SetUp_Buzzer();
@@ -488,6 +510,8 @@ void setup(void)
   SetUp_SSD1306();
 
   SetUp_Relays();
+
+  SetUp_SIM900A();
 }
 
 void Read_MPU9250(void)
@@ -626,9 +650,7 @@ void Read_RC522(void)
 
 void Read_DS3231(void)
 {
-  DateTime now = DS3231.now();
-
-  DS3231_OutPut.UNIX_Time = now.unixtime();
+  DS3231_OutPut.UNIX_Time = DS3231.now().unixtime();
 
   DS3231_OutPut.Temperature = DS3231.getTemperature();
 
@@ -658,6 +680,7 @@ void Read_DS3231(void)
   {
     DS3231_OutPut.Alarm_1_Mode = "Day";
   }
+  DS3231_OutPut.Is_Alarm_1_Fired = DS3231.alarmFired(1);
 
   DS3231_OutPut.Alarm_2_Time = DS3231.getAlarm2().unixtime();
   Ds3231Alarm2Mode Alarm_2_Mode = DS3231.getAlarm2Mode();
@@ -677,6 +700,7 @@ void Read_DS3231(void)
   {
     DS3231_OutPut.Alarm_2_Mode = "Day";
   }
+  DS3231_OutPut.Is_Alarm_2_Fired = DS3231.alarmFired(2);
 }
 
 void Send_JSON(void)
@@ -754,8 +778,10 @@ void Send_JSON(void)
   DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
   DS3231_JSON["Alarm_1_Time"] = DS3231_OutPut.Alarm_1_Time;
   DS3231_JSON["Alarm_1_Mode"] = DS3231_OutPut.Alarm_1_Mode;
+  DS3231_JSON["Is_Alarm_1_Fired"] = DS3231_OutPut.Is_Alarm_1_Fired;
   DS3231_JSON["Alarm_2_Time"] = DS3231_OutPut.Alarm_2_Time;
   DS3231_JSON["Alarm_2_Mode"] = DS3231_OutPut.Alarm_2_Mode;
+  DS3231_JSON["Is_Alarm_2_Fired"] = DS3231_OutPut.Is_Alarm_2_Fired;
   Readings_JSON["DS3231"] = DS3231_JSON;
 
   Readings_JSON["UpTime"] = millis();
@@ -922,6 +948,19 @@ void Receive_JSON(void)
         }
       }
 
+      if (ESP32_JSON.containsKey("SIM900A_AT"))
+      {
+        String SIM900A_AT = ESP32_JSON["SIM900A_AT"].as<String>();
+
+        SIM900A.print(SIM900A_AT);
+        SIM900A.print("\r\n");
+
+        while (SIM900A.available())
+        {
+          ESP32.print(SIM900A.read());
+        }
+      }
+
       digitalWrite(LED_BUILTIN, LOW);
     }
   }
@@ -964,11 +1003,12 @@ void loop(void)
 }
 
 // TODO:
-// NEO7M Physical Test
-// Set Usage of RGB LED
 // Buy IR Flame Sensor
+// NEO7M Physical Test
 // RCWL0516 Interference
-// SIM900A
+// Set Usage of RGB LED
+// Test DS3231 Alarm Time Output and INT
+
+// TODO:
 // MAX30102
 // DSM501A
-// Test DS3231 Setting Time and Alarm
