@@ -278,8 +278,6 @@ void SetUp_MPU9250(void)
 
   if (I2C_Status.MPU9250 && I2C_Status.MPU9250_Magnetometer)
   {
-    delay(1000);
-
     MPU9250.autoOffsets();
 
     MPU9250.enableAccDLPF(true);
@@ -295,8 +293,6 @@ void SetUp_MPU9250(void)
     MPU9250.setMagOpMode(AK8963_CONT_MODE_100HZ); /* Highest */
 
     MPU9250.setSampleRateDivider(0); /* Lowest */
-
-    delay(200);
   }
 }
 
@@ -1080,7 +1076,6 @@ void loop(void)
 
   while (!ESP32.available())
   {
-    delay(10);
   }
 
   Receive_JSON();
