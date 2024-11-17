@@ -1,4 +1,4 @@
-/* by Abdullah As-Sadeed */
+/* By Abdullah As-Sadeed */
 
 /*
 Board: "Arduino Mega or Mega 2560"
@@ -32,6 +32,10 @@ Programmer: "AVR ISP"
 
 #define MPU9250_ADDRESS 0x69
 #define BH1750_ADDRESS 0x23
+
+#define DSM501A_PM25 50
+#define DSM501A_PM1 51
+#define DSM501A_SAMPLE_TIME 5000
 
 #define MQ2 A0
 #define MQ3 A1
@@ -142,6 +146,12 @@ struct BME280_Readings_Type
   float Temperature, Humidity, Pressure, Altitude;
 };
 BME280_Readings_Type BME280_Readings;
+
+struct DSM501A_Readings_Type
+{
+  float PM25_mgm3, PM25_pcs283ml, PM1_mgm3, PM1_pcs283ml;
+};
+DSM501A_Readings_Type DSM501A_Readings;
 
 struct UART_Status_Type
 {
@@ -314,6 +324,12 @@ void SetUp_BME280(void)
     I2C_Status.BME280 = false;
     digitalWrite(BUZZER, HIGH);
   }
+}
+
+void SetUp_DSM501A(void)
+{
+  pinMode(DSM501A_PM25, INPUT);
+  pinMode(DSM501A_PM1, INPUT);
 }
 
 void SetUp_RDM6300(void)
@@ -495,6 +511,8 @@ void setup(void)
 
   SetUp_BME280();
 
+  SetUp_DSM501A();
+
   pinMode(RCWL0516, INPUT);
 
   pinMode(FLAME_SENSOR, INPUT);
@@ -594,6 +612,26 @@ void Read_BME280(void)
     BME280_Readings.Pressure = 0;
     BME280_Readings.Altitude = 0;
   }
+}
+
+void Read_DSM501A(void)
+{
+  float PM25_Low = 0.0, PM1_Low = 0.0;
+
+  unsigned long Start_Time = millis();
+  while (millis() - Start_Time < DSM501A_SAMPLE_TIME)
+  {
+    PM25_Low += pulseIn(DSM501A_PM25, LOW) / 1000.0;
+    PM1_Low += pulseIn(DSM501A_PM1, LOW) / 1000.0;
+  }
+
+  float PM25_Low_Ratio = PM25_Low / DSM501A_SAMPLE_TIME * 100;
+  DSM501A_Readings.PM25_mgm3 = max(0, 0.00258425 * pow(PM25_Low_Ratio, 2) + 0.0858521 * PM25_Low_Ratio - 0.01345549);
+  DSM501A_Readings.PM25_pcs283ml = min(625 * PM25_Low_Ratio, 12500);
+
+  float PM1_Low_Ratio = PM1_Low / DSM501A_SAMPLE_TIME * 100;
+  DSM501A_Readings.PM1_mgm3 = max(0, 0.00258425 * pow(PM1_Low_Ratio, 2) + 0.0858521 * PM1_Low_Ratio - 0.01345549);
+  DSM501A_Readings.PM1_pcs283ml = min(625 * PM1_Low_Ratio, 12500);
 }
 
 void Read_MQ_Sensors(void)
@@ -766,6 +804,13 @@ void Send_JSON(void)
   BME280_JSON["Altitude"] = BME280_Readings.Altitude;
   Readings_JSON["BME280"] = BME280_JSON;
 
+  JsonDocument DSM501A_JSON;
+  DSM501A_JSON["PM25_mgm3"] = DSM501A_Readings.PM25_mgm3;
+  DSM501A_JSON["PM25_pcs283ml"] = DSM501A_Readings.PM25_pcs283ml;
+  DSM501A_JSON["PM1_mgm3"] = DSM501A_Readings.PM1_mgm3;
+  DSM501A_JSON["PM1_pcs283ml"] = DSM501A_Readings.PM1_pcs283ml;
+  Readings_JSON["DSM501A"] = DSM501A_JSON;
+
   Readings_JSON["MQ2"] = MQs_Readings.MQ2;
   Readings_JSON["MQ3"] = MQs_Readings.MQ3;
   Readings_JSON["MQ4"] = MQs_Readings.MQ4;
@@ -834,6 +879,15 @@ void Receive_JSON(void)
         if (If_Reset_Arduino_Mega_2560)
         {
           Reset_Arduino_Mega_2560();
+        }
+      }
+
+      if (ESP32_JSON.containsKey("If_Read_DSM501A"))
+      {
+        bool If_Read_DSM501A = ESP32_JSON["If_Read_DSM501A"].as<bool>();
+        if (If_Read_DSM501A)
+        {
+          Read_DSM501A();
         }
       }
 
@@ -1033,12 +1087,10 @@ void loop(void)
 }
 
 // TODO:
-// Buy IR Flame Sensor
+// DSM501A Physical Test and Calibration
+// Get a New IR Flame Sensor
+// MQ Sensors Physical Test
 // NEO7M Physical Test
 // RCWL0516 Interference
 // Set Usage of RGB LED
 // Test DS3231 Alarm Time Output and INT
-
-// TODO:
-// MAX30102
-// DSM501A
