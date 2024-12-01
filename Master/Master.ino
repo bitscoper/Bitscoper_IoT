@@ -47,9 +47,11 @@ Programmer: "AVR ISP"
 #define MQ9 A7
 #define MQ135 A8
 
-#define RCWL0516 24
+#define IR_SENSOR A9
 
-#define FLAME_SENSOR 22
+#define HC_SR501 37
+
+#define RCWL0516 36
 
 #define RDM6300_UART Serial2
 
@@ -165,7 +167,9 @@ struct MQs_Readings_Type
 };
 MQs_Readings_Type MQs_Readings;
 
-boolean BlackBody_Motion, Flame;
+float IR_Radiation;
+
+boolean HC_SR501_Motion, RCWL0516_Motion;
 
 struct NEO7M_Readings_Type
 {
@@ -511,8 +515,6 @@ void setup(void)
 
   pinMode(RCWL0516, INPUT);
 
-  pinMode(FLAME_SENSOR, INPUT);
-
   SetUp_RDM6300();
 
   SetUp_RC522();
@@ -817,9 +819,12 @@ void Send_JSON(void)
   Readings_JSON["MQ9"] = MQs_Readings.MQ9;
   Readings_JSON["MQ135"] = MQs_Readings.MQ135;
 
-  Readings_JSON["RCWL0516"] = BlackBody_Motion;
+  Readings_JSON["IR_Radiation"] = IR_Radiation;
 
-  Readings_JSON["Flame"] = Flame;
+  JsonDocument Motion_JSON;
+  Motion_JSON["HC_SR501"] = HC_SR501_Motion;
+  Motion_JSON["RCWL0516"] = RCWL0516_Motion;
+  Readings_JSON["Motion"] = Motion_JSON;
 
   Readings_JSON["RDM6300"] = RDM6300_Reading;
 
@@ -1058,9 +1063,11 @@ void loop(void)
 
   Read_MQ_Sensors();
 
-  BlackBody_Motion = digitalRead(RCWL0516);
+  IR_Radiation = analogRead(IR_SENSOR);
 
-  Flame = !digitalRead(FLAME_SENSOR);
+  HC_SR501_Motion = digitalRead(HC_SR501);
+
+  RCWL0516_Motion = digitalRead(RCWL0516);
 
   Read_NEO7M();
 
@@ -1082,10 +1089,9 @@ void loop(void)
 }
 
 // TODO:
+// Buy New: BME280, RCWL0516
 // DSM501A Physical Test and Calibration
-// Get a New IR Flame Sensor
-// MQ Sensors Physical Test
 // NEO7M Physical Test
-// RCWL0516 Interference
+// SIM900A Registration Failure
 // Set Usage of RGB LED
 // Test DS3231 Alarm Time Output and INT
