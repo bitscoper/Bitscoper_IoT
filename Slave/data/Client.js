@@ -124,7 +124,7 @@ var mq9_chart_line = bind_chart("mq9_chart", 1, true);
 var mq135_chart_line = bind_chart("mq135_chart", 1, true);
 
 if (!!window.EventSource) {
-  var source = new EventSource("/Events");
+  var source = new EventSource("/SSE");
   source.addEventListener(
     "open",
     function () {
