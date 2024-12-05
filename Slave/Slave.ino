@@ -44,12 +44,14 @@ AsyncEventSource Events("/SSE");
 
 const char *Compilation_Date_Time = __DATE__ " " __TIME__;
 
-void SetUp_Work_LED() {
+void SetUp_Work_LED()
+{
   pinMode(WORK_LED, OUTPUT);
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void SetUp_WiFi(void) {
+void SetUp_WiFi(void)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   WiFi.mode(WIFI_STA);
@@ -58,13 +60,15 @@ void SetUp_WiFi(void) {
 
   WiFi.begin(WiFi_SSID, WiFi_PassWord);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
   }
 
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Add_Common_Headers(AsyncWebServerResponse *Response) {
+void Add_Common_Headers(AsyncWebServerResponse *Response)
+{
   Response->addHeader("Access-Control-Allow-Origin", "*");
   Response->addHeader("Referrer-Policy", "strict-origin");
   Response->addHeader("Server", "Bitscoper_IoT");
@@ -72,30 +76,49 @@ void Add_Common_Headers(AsyncWebServerResponse *Response) {
   Response->addHeader("X-Frame-Options", "SAMEORIGIN");
 }
 
-String Process_Page(const String &Variable) {
+String Process_Page(const String &Variable)
+{
   int Chip_ID = 0;
 
-  for (int Iteration = 0; Iteration < 17; Iteration = Iteration + 8) {
+  for (int Iteration = 0; Iteration < 17; Iteration = Iteration + 8)
+  {
     Chip_ID |= ((ESP.getEfuseMac() >> (40 - Iteration)) & 0xff) << Iteration;
   }
 
-  if (Variable == "CHIP_MODEL") {
+  if (Variable == "CHIP_MODEL")
+  {
     return String(ESP.getChipModel());
-  } else if (Variable == "CHIP_REVISION") {
+  }
+  else if (Variable == "CHIP_REVISION")
+  {
     return String(ESP.getChipRevision());
-  } else if (Variable == "CHIP_CORES") {
+  }
+  else if (Variable == "CHIP_CORES")
+  {
     return String(ESP.getChipCores());
-  } else if (Variable == "CHIP_ID") {
+  }
+  else if (Variable == "CHIP_ID")
+  {
     return String(Chip_ID);
-  } else if (Variable == "MAC_ADDRESS") {
+  }
+  else if (Variable == "MAC_ADDRESS")
+  {
     return String(WiFi.macAddress());
-  } else if (Variable == "HOST_NAME") {
+  }
+  else if (Variable == "HOST_NAME")
+  {
     return String(WiFi.getHostname());
-  } else if (Variable == "LOCAL_IP_ADDRESS") {
+  }
+  else if (Variable == "LOCAL_IP_ADDRESS")
+  {
     return String(WiFi.localIP().toString().c_str());
-  } else if (Variable == "COMPILE_DATE_TIME") {
+  }
+  else if (Variable == "COMPILE_DATE_TIME")
+  {
     return String(Compilation_Date_Time);
-  } else if (Variable == "UPTIME") {
+  }
+  else if (Variable == "UPTIME")
+  {
     float UpTime = millis() / 1000;
 
     return String(UpTime);
@@ -104,7 +127,8 @@ String Process_Page(const String &Variable) {
   return String();
 }
 
-void Handle_Root(AsyncWebServerRequest *Request) {
+void Handle_Root(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   File XHTML_Body_File = LittleFS.open("/Client.xhtml", "r");
@@ -121,7 +145,8 @@ void Handle_Root(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Serve_FavIcon(AsyncWebServerRequest *Request) {
+void Serve_FavIcon(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   File FavIcon_File = LittleFS.open("/favicon.ico", "r");
@@ -134,12 +159,13 @@ void Serve_FavIcon(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Serve_CSS(AsyncWebServerRequest *Request) {
+void Serve_CSS(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
-  File CSS_file = LittleFS.open("/Client.css", "r");
-  String CSS = CSS_file.readString();
-  CSS_file.close();
+  File CSS_File = LittleFS.open("/Client.css", "r");
+  String CSS = CSS_File.readString();
+  CSS_File.close();
 
   AsyncWebServerResponse *Response = Request->beginResponse(200, "text/css", CSS);
   Add_Common_Headers(Response);
@@ -148,12 +174,13 @@ void Serve_CSS(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Serve_JavaScript(AsyncWebServerRequest *Request) {
+void Serve_JavaScript(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
-  File JavaScript_file = LittleFS.open("/Client.js", "r");
-  String JavaScript = JavaScript_file.readString();
-  JavaScript_file.close();
+  File JavaScript_File = LittleFS.open("/Client.js", "r");
+  String JavaScript = JavaScript_File.readString();
+  JavaScript_File.close();
 
   AsyncWebServerResponse *Response = Request->beginResponse(200, "text/javascript", JavaScript);
   Add_Common_Headers(Response);
@@ -162,17 +189,22 @@ void Serve_JavaScript(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-String Scan_WiFi(void) {
+String Scan_WiFi(void)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   String Result = "";
 
   int n = WiFi.scanComplete();
-  if (n == -2) {
+  if (n == -2)
+  {
     WiFi.scanNetworks(true);
-  } else if (n) {
+  }
+  else if (n)
+  {
     Result += "<table>\n<tbody>\n<tr>\n<th colspan=\"5\">Nearby Wi-Fi Access Points</th>\n</tr>\n<tr>\n<th>RSSI</th>\n<th>SSID</th>\n<th>BSSID</th>\n<th>Channel</th>\n<th>Encryption</th>\n</tr>\n";
-    for (int Iteration = 0; Iteration < n; ++Iteration) {
+    for (int Iteration = 0; Iteration < n; ++Iteration)
+    {
       Result += "<tr>\n<td>";
       Result += WiFi.RSSI(Iteration);
       Result += "</td>\n<td>";
@@ -183,17 +215,28 @@ String Scan_WiFi(void) {
       Result += WiFi.channel(Iteration);
       Result += "</td>\n<td>";
       int Encryption = WiFi.encryptionType(Iteration);
-      if (Encryption == WIFI_AUTH_OPEN) {
+      if (Encryption == WIFI_AUTH_OPEN)
+      {
         Result += "Open";
-      } else if (Encryption == WIFI_AUTH_WEP) {
+      }
+      else if (Encryption == WIFI_AUTH_WEP)
+      {
         Result += "WEP";
-      } else if (Encryption == WIFI_AUTH_WPA_PSK) {
+      }
+      else if (Encryption == WIFI_AUTH_WPA_PSK)
+      {
         Result += "WPA PSK";
-      } else if (Encryption == WIFI_AUTH_WPA2_PSK) {
+      }
+      else if (Encryption == WIFI_AUTH_WPA2_PSK)
+      {
         Result += "WPA2 PSK";
-      } else if (Encryption == WIFI_AUTH_WPA_WPA2_PSK) {
+      }
+      else if (Encryption == WIFI_AUTH_WPA_WPA2_PSK)
+      {
         Result += "WPA WPA2 PSK";
-      } else if (Encryption == WIFI_AUTH_WPA2_ENTERPRISE) {
+      }
+      else if (Encryption == WIFI_AUTH_WPA2_ENTERPRISE)
+      {
         Result += "WPA2 Enterprise";
       }
       Result += "</td>\n</tr>\n";
@@ -201,7 +244,8 @@ String Scan_WiFi(void) {
     Result += "</tbody>\n</table>\n";
 
     WiFi.scanDelete();
-    if (WiFi.scanComplete() == -2) {
+    if (WiFi.scanComplete() == -2)
+    {
       WiFi.scanNetworks(true);
     }
   }
@@ -211,32 +255,42 @@ String Scan_WiFi(void) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Handle_Request_JSON(AsyncWebServerRequest *Request) {
+void Handle_Request_JSON(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   int Arguments = Request->args();
 
-  if (Arguments > 0) {
-    for (int Iteration = 0; Iteration < Arguments; Iteration++) {
-      if (Request->argName(Iteration) == "JSON") {
+  if (Arguments > 0)
+  {
+    for (int Iteration = 0; Iteration < Arguments; Iteration++)
+    {
+      if (Request->argName(Iteration) == "JSON")
+      {
         JsonDocument Request_JSON;
 
         DeserializationError Request_JSON_Error = deserializeJson(Request_JSON, Request->arg(Iteration));
 
-        if (Request_JSON_Error == DeserializationError::Ok) {
+        if (Request_JSON_Error == DeserializationError::Ok)
+        {
           String Response_String = "";
 
-          if (Request_JSON.containsKey("Flash_LED")) {
+          if (Request_JSON.containsKey("Flash_LED"))
+          {
             bool Flash_LED_State = Request_JSON["Flash_LED"].as<bool>();
 
-            if (Flash_LED_State) {
+            if (Flash_LED_State)
+            {
               digitalWrite(FLASH_LED, HIGH);
-            } else if (!Flash_LED_State) {
+            }
+            else if (!Flash_LED_State)
+            {
               digitalWrite(FLASH_LED, LOW);
             }
           }
 
-          if (Request_JSON.containsKey("Scan_WiFi")) {
+          if (Request_JSON.containsKey("Scan_WiFi"))
+          {
             Response_String = Scan_WiFi();
           }
 
@@ -248,10 +302,12 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request) {
           Add_Common_Headers(Response);
           Request->send(Response);
 
-          if (Request_JSON.containsKey("Reset_ESP32")) {
+          if (Request_JSON.containsKey("Reset_ESP32"))
+          {
             bool If_Reset_ESP32 = Request_JSON["Reset_ESP32"].as<bool>();
 
-            if (If_Reset_ESP32) {
+            if (If_Reset_ESP32)
+            {
               ESP.restart();
             }
           }
@@ -263,7 +319,8 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void Assign_URLs(void) {
+void Assign_URLs(void)
+{
   Server.on("/", HTTP_GET, Handle_Root);
 
   Server.on("/favicon.ico", HTTP_GET, Serve_FavIcon);
@@ -273,16 +330,20 @@ void Assign_URLs(void) {
   Server.on("/Requests", HTTP_GET, Handle_Request_JSON);
 }
 
-void Handle_Error_404(AsyncWebServerRequest *Request) {
+void Handle_Error_404(AsyncWebServerRequest *Request)
+{
   digitalWrite(WORK_LED, LOW); /* On */
 
   String Response_String = "HTTP 404\n\n";
 
   Response_String += "Version: ";
   int version = Request->version();
-  if (version == 0) {
+  if (version == 0)
+  {
     Response_String += "HTTP/1.0\n\n";
-  } else if (version == 1) {
+  }
+  else if (version == 1)
+  {
     Response_String += "HTTP/1.1\n\n";
   }
 
@@ -294,19 +355,32 @@ void Handle_Error_404(AsyncWebServerRequest *Request) {
 
   Response_String += "\n\nMethod: ";
   int method = Request->method();
-  if (method == HTTP_GET) {
+  if (method == HTTP_GET)
+  {
     Response_String += "GET";
-  } else if (method == HTTP_POST) {
+  }
+  else if (method == HTTP_POST)
+  {
     Response_String += "POST";
-  } else if (method == HTTP_DELETE) {
+  }
+  else if (method == HTTP_DELETE)
+  {
     Response_String += "DELETE";
-  } else if (method == HTTP_PUT) {
+  }
+  else if (method == HTTP_PUT)
+  {
     Response_String += "PUT";
-  } else if (method == HTTP_PATCH) {
+  }
+  else if (method == HTTP_PATCH)
+  {
     Response_String += "PATCH";
-  } else if (method == HTTP_HEAD) {
+  }
+  else if (method == HTTP_HEAD)
+  {
     Response_String += "HEAD";
-  } else if (method == HTTP_OPTIONS) {
+  }
+  else if (method == HTTP_OPTIONS)
+  {
     Response_String += "OPTIONS";
   }
 
@@ -315,15 +389,19 @@ void Handle_Error_404(AsyncWebServerRequest *Request) {
   Response_String += Arguments;
   Response_String += "\n\n";
 
-  if (Arguments > 0) {
+  if (Arguments > 0)
+  {
     Response_String += "Arguments:\n";
-    for (int Iteration = 0; Iteration < Arguments; Iteration++) {
+
+    for (int Iteration = 0; Iteration < Arguments; Iteration++)
+    {
       Response_String += "\t  ";
       Response_String += Request->argName(Iteration).c_str();
       Response_String += ": ";
       Response_String += Request->arg(Iteration).c_str();
       Response_String += "\n";
     }
+
     Response_String += "\n";
   }
 
@@ -338,7 +416,8 @@ void Handle_Error_404(AsyncWebServerRequest *Request) {
   digitalWrite(WORK_LED, HIGH); /* Off */
 }
 
-void SetUp_Server(void) {
+void SetUp_Server(void)
+{
   Assign_URLs();
 
   Server.addHandler(&Events);
@@ -348,18 +427,21 @@ void SetUp_Server(void) {
   Server.begin();
 }
 
-void SetUp_Flash_LED() {
+void SetUp_Flash_LED()
+{
   pinMode(FLASH_LED, OUTPUT);
   digitalWrite(FLASH_LED, LOW);
 }
 
-void setup(void) {
+void setup(void)
+{
   SetUp_Work_LED();
 
   ARDUINO_MEGA_2560.begin(ARDUINO_MEGA_2560_BAUD_RATE);
   // ARDUINO_MEGA_2560.setDebugOutput(true);
 
-  if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
+  if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED))
+  {
     return;
   };
 
@@ -370,28 +452,34 @@ void setup(void) {
   SetUp_Flash_LED();
 }
 
-void loop(void) {
-  while (ARDUINO_MEGA_2560.available()) {
+void Send_IP_Address_To_Arduino_Mega_2560(void)
+{
+  JsonDocument Response_JSON;
+
+  Response_JSON["IP_Address"] = String(WiFi.localIP().toString().c_str());
+
+  ARDUINO_MEGA_2560.println();
+  serializeJson(Response_JSON, ARDUINO_MEGA_2560);
+  ARDUINO_MEGA_2560.flush();
+}
+
+void loop(void)
+{
+  while (ARDUINO_MEGA_2560.available())
+  {
     digitalWrite(WORK_LED, LOW); /* On */
 
     JsonDocument ARDUINO_MEGA_2560_JSON;
 
     DeserializationError ARDUINO_MEGA_2560_JSON_Error = deserializeJson(ARDUINO_MEGA_2560_JSON, ARDUINO_MEGA_2560);
 
-    if (ARDUINO_MEGA_2560_JSON_Error == DeserializationError::Ok) {
-      if (ARDUINO_MEGA_2560_JSON.containsKey("Get_IP_Address")) {
-        JsonDocument Response_JSON;
+    if (ARDUINO_MEGA_2560_JSON_Error == DeserializationError::Ok)
+    {
+      Send_IP_Address_To_Arduino_Mega_2560();
 
-        Response_JSON["IP_Address"] = String(WiFi.localIP().toString().c_str());
-
-        ARDUINO_MEGA_2560.println();
-        serializeJson(Response_JSON, ARDUINO_MEGA_2560);
-        ARDUINO_MEGA_2560.flush();
-      }
-
-      String JSON_String;
-      serializeJson(ARDUINO_MEGA_2560_JSON, JSON_String);
-      Events.send(JSON_String.c_str(), "json", millis());
+      String Arduino_Mega_2560_JSON_String;
+      serializeJson(ARDUINO_MEGA_2560_JSON, Arduino_Mega_2560_JSON_String);
+      Events.send(Arduino_Mega_2560_JSON_String.c_str(), "json", millis());
     }
 
     digitalWrite(WORK_LED, HIGH); /* Off */
