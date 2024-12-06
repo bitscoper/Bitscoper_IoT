@@ -192,16 +192,16 @@ RC522_Reading_Type RC522_Reading;
 
 struct DS3231_OutPut_Type
 {
-  long UNIX_Time, Alarm_1_Time, Alarm_2_Time;
+  long Time, Alarm_1_Time, Alarm_2_Time;
   float Temperature;
   String Alarm_1_Mode, Alarm_2_Mode;
   bool Is_Alarm_1_Fired, Is_Alarm_2_Fired;
 };
 DS3231_OutPut_Type DS3231_OutPut;
 
-const char *Compilation_Date_Time = __DATE__ " " __TIME__;
+const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
 
-void (*Reset_Arduino_Mega_2560)(void) = 0;
+void (*ReSet_Arduino_Mega_2560)(void) = 0;
 
 void SetUp_Buzzer(void)
 {
@@ -682,7 +682,7 @@ void Read_DS3231(void)
 {
   if (I2C_Status.DS3231)
   {
-    DS3231_OutPut.UNIX_Time = DS3231.now().unixtime();
+    DS3231_OutPut.Time = DS3231.now().unixtime();
 
     DS3231_OutPut.Temperature = DS3231.getTemperature();
 
@@ -736,7 +736,7 @@ void Read_DS3231(void)
   }
   else
   {
-    DS3231_OutPut.UNIX_Time = 0;
+    DS3231_OutPut.Time = 0;
 
     DS3231_OutPut.Temperature = 0;
 
@@ -754,27 +754,31 @@ void Send_JSON(void)
 {
   JsonDocument Readings_JSON;
 
-  JsonDocument Acceleration_JSON;
-  Acceleration_JSON["X"] = MPU9250_Readings.Acceleration.X;
-  Acceleration_JSON["Y"] = MPU9250_Readings.Acceleration.Y;
-  Acceleration_JSON["Z"] = MPU9250_Readings.Acceleration.Z;
-  Acceleration_JSON["Resultant"] =
+  Readings_JSON["Compilation_Date_and_Time"] = Compilation_Date_and_Time;
+
+  Readings_JSON["UpTime"] = millis();
+
+  JsonDocument MPU9250_Acceleration_JSON;
+  MPU9250_Acceleration_JSON["X"] = MPU9250_Readings.Acceleration.X;
+  MPU9250_Acceleration_JSON["Y"] = MPU9250_Readings.Acceleration.Y;
+  MPU9250_Acceleration_JSON["Z"] = MPU9250_Readings.Acceleration.Z;
+  MPU9250_Acceleration_JSON["Resultant"] =
       MPU9250_Readings.Acceleration.Resultant;
 
-  JsonDocument Gyro_JSON;
-  Gyro_JSON["X"] = MPU9250_Readings.Gyro.X;
-  Gyro_JSON["Y"] = MPU9250_Readings.Gyro.Y;
-  Gyro_JSON["Z"] = MPU9250_Readings.Gyro.Z;
+  JsonDocument MPU9250_Gyro_JSON;
+  MPU9250_Gyro_JSON["X"] = MPU9250_Readings.Gyro.X;
+  MPU9250_Gyro_JSON["Y"] = MPU9250_Readings.Gyro.Y;
+  MPU9250_Gyro_JSON["Z"] = MPU9250_Readings.Gyro.Z;
 
-  JsonDocument Magneto_JSON;
-  Magneto_JSON["X"] = MPU9250_Readings.Magneto.X;
-  Magneto_JSON["Y"] = MPU9250_Readings.Magneto.Y;
-  Magneto_JSON["Z"] = MPU9250_Readings.Magneto.Z;
+  JsonDocument MPU9250_Magneto_JSON;
+  MPU9250_Magneto_JSON["X"] = MPU9250_Readings.Magneto.X;
+  MPU9250_Magneto_JSON["Y"] = MPU9250_Readings.Magneto.Y;
+  MPU9250_Magneto_JSON["Z"] = MPU9250_Readings.Magneto.Z;
 
   JsonDocument MPU9250_JSON;
-  MPU9250_JSON["Acceleration"] = Acceleration_JSON;
-  MPU9250_JSON["Gyro"] = Gyro_JSON;
-  MPU9250_JSON["Magneto"] = Magneto_JSON;
+  MPU9250_JSON["Acceleration"] = MPU9250_Acceleration_JSON;
+  MPU9250_JSON["Gyro"] = MPU9250_Gyro_JSON;
+  MPU9250_JSON["Magneto"] = MPU9250_Magneto_JSON;
   MPU9250_JSON["Temperature"] = MPU9250_Readings.Temperature;
 
   Readings_JSON["MPU9250"] = MPU9250_JSON;
@@ -830,18 +834,22 @@ void Send_JSON(void)
   NEO7M_JSON["HDOP"] = NEO7M_Readings.HDOP;
   Readings_JSON["NEO7M"] = NEO7M_JSON;
 
-  JsonDocument DS3231_JSON;
-  DS3231_JSON["UNIX_Time"] = DS3231_OutPut.UNIX_Time;
-  DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
-  DS3231_JSON["Alarm_1_Time"] = DS3231_OutPut.Alarm_1_Time;
-  DS3231_JSON["Alarm_1_Mode"] = DS3231_OutPut.Alarm_1_Mode;
-  DS3231_JSON["Is_Alarm_1_Fired"] = DS3231_OutPut.Is_Alarm_1_Fired;
-  DS3231_JSON["Alarm_2_Time"] = DS3231_OutPut.Alarm_2_Time;
-  DS3231_JSON["Alarm_2_Mode"] = DS3231_OutPut.Alarm_2_Mode;
-  DS3231_JSON["Is_Alarm_2_Fired"] = DS3231_OutPut.Is_Alarm_2_Fired;
-  Readings_JSON["DS3231"] = DS3231_JSON;
+  JsonDocument DS3231_Alarm_1_JSON;
+  DS3231_Alarm_1_JSON["Time"] = DS3231_OutPut.Alarm_1_Time;
+  DS3231_Alarm_1_JSON["Mode"] = DS3231_OutPut.Alarm_1_Mode;
+  DS3231_Alarm_1_JSON["Is_Fired"] = DS3231_OutPut.Is_Alarm_1_Fired;
 
-  Readings_JSON["UpTime"] = millis();
+  JsonDocument DS3231_Alarm_2_JSON;
+  DS3231_Alarm_2_JSON["Time"] = DS3231_OutPut.Alarm_2_Time;
+  DS3231_Alarm_2_JSON["Mode"] = DS3231_OutPut.Alarm_2_Mode;
+  DS3231_Alarm_2_JSON["Is_Fired"] = DS3231_OutPut.Is_Alarm_2_Fired;
+
+  JsonDocument DS3231_JSON;
+  DS3231_JSON["Time"] = DS3231_OutPut.Time;
+  DS3231_JSON["Alarm_1"] = DS3231_Alarm_1_JSON;
+  DS3231_JSON["Alarm_2"] = DS3231_Alarm_2_JSON;
+  DS3231_JSON["Temperature"] = DS3231_OutPut.Temperature;
+  Readings_JSON["DS3231"] = DS3231_JSON;
 
   ESP32.println();
   serializeJson(Readings_JSON, ESP32);
@@ -860,13 +868,13 @@ void Receive_JSON(void)
     {
       digitalWrite(LED_BUILTIN, HIGH);
 
-      if (ESP32_JSON.containsKey("Reset_Arduino_Mega_2560"))
+      if (ESP32_JSON.containsKey("ReSet_Arduino_Mega_2560"))
       {
-        bool If_Reset_Arduino_Mega_2560 = ESP32_JSON["Reset_Arduino_Mega_2560"].as<bool>();
+        bool If_ReSet_Arduino_Mega_2560 = ESP32_JSON["ReSet_Arduino_Mega_2560"].as<bool>();
 
-        if (If_Reset_Arduino_Mega_2560)
+        if (If_ReSet_Arduino_Mega_2560)
         {
-          Reset_Arduino_Mega_2560();
+          ReSet_Arduino_Mega_2560();
         }
       }
 
@@ -889,9 +897,7 @@ void Receive_JSON(void)
 
       if (ESP32_JSON.containsKey("Set_DS3231_Time"))
       {
-        long UNIX_Time = ESP32_JSON["Set_DS3231_Time"].as<long>();
-
-        DateTime Time = DateTime(UNIX_Time);
+        DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Time"].as<long>());
 
         DS3231.adjust(Time);
       }
@@ -899,10 +905,8 @@ void Receive_JSON(void)
       if (ESP32_JSON.containsKey("Set_DS3231_Alarm"))
       {
         unsigned int Number = ESP32_JSON["Set_DS3231_Alarm"]["Number"].as<unsigned int>();
-        long UNIX_Time = ESP32_JSON["Set_DS3231_Alarm"]["UNIX_Time"].as<long>();
+        DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Alarm"]["Time"].as<long>());
         String Match = ESP32_JSON["Set_DS3231_Alarm"]["Match"];
-
-        DateTime Time = DateTime(UNIX_Time);
 
         if (Number == 1)
         {

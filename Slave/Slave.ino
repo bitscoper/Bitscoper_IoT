@@ -42,7 +42,7 @@
 AsyncWebServer Server(WEBSERVER_PORT);
 AsyncEventSource Events("/SSE");
 
-const char *Compilation_Date_Time = __DATE__ " " __TIME__;
+const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
 
 void SetUp_Work_LED()
 {
@@ -85,39 +85,39 @@ String Process_Page(const String &Variable)
     Chip_ID |= ((ESP.getEfuseMac() >> (40 - Iteration)) & 0xff) << Iteration;
   }
 
-  if (Variable == "CHIP_MODEL")
+  if (Variable == "ESP32_COMPILATION_DATE_AND_TIME")
+  {
+    return String(Compilation_Date_and_Time);
+  }
+  else if (Variable == "ESP32_CHIP_MODEL")
   {
     return String(ESP.getChipModel());
   }
-  else if (Variable == "CHIP_REVISION")
+  else if (Variable == "ESP32_CHIP_REVISION")
   {
     return String(ESP.getChipRevision());
   }
-  else if (Variable == "CHIP_CORES")
+  else if (Variable == "ESP32_CHIP_CORES")
   {
     return String(ESP.getChipCores());
   }
-  else if (Variable == "CHIP_ID")
+  else if (Variable == "ESP32_CHIP_ID")
   {
     return String(Chip_ID);
   }
-  else if (Variable == "MAC_ADDRESS")
+  else if (Variable == "ESP32_MAC_ADDRESS")
   {
     return String(WiFi.macAddress());
   }
-  else if (Variable == "HOST_NAME")
+  else if (Variable == "ESP32_HOST_NAME")
   {
     return String(WiFi.getHostname());
   }
-  else if (Variable == "LOCAL_IP_ADDRESS")
+  else if (Variable == "ESP32_LOCAL_IP_ADDRESS")
   {
     return String(WiFi.localIP().toString().c_str());
   }
-  else if (Variable == "COMPILE_DATE_TIME")
-  {
-    return String(Compilation_Date_Time);
-  }
-  else if (Variable == "UPTIME")
+  else if (Variable == "ESP32_UPTIME")
   {
     float UpTime = millis() / 1000;
 
@@ -202,7 +202,7 @@ String Scan_WiFi(void)
   }
   else if (n)
   {
-    Result += "<table>\n<tbody>\n<tr>\n<th colspan=\"5\">Nearby Wi-Fi Access Points</th>\n</tr>\n<tr>\n<th>RSSI</th>\n<th>SSID</th>\n<th>BSSID</th>\n<th>Channel</th>\n<th>Encryption</th>\n</tr>\n";
+    Result += "<table>\n<tbody>\n<tr>\n<th colspan=\"5\">Wi-Fi Access Points</th>\n</tr>\n<tr>\n<th>RSSI</th>\n<th>SSID</th>\n<th>BSSID</th>\n<th>Channel</th>\n<th>Encryption</th>\n</tr>\n";
     for (int Iteration = 0; Iteration < n; ++Iteration)
     {
       Result += "<tr>\n<td>";
@@ -302,11 +302,11 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
           Add_Common_Headers(Response);
           Request->send(Response);
 
-          if (Request_JSON.containsKey("Reset_ESP32"))
+          if (Request_JSON.containsKey("ReSet_ESP32"))
           {
-            bool If_Reset_ESP32 = Request_JSON["Reset_ESP32"].as<bool>();
+            bool If_ReSet_ESP32 = Request_JSON["ReSet_ESP32"].as<bool>();
 
-            if (If_Reset_ESP32)
+            if (If_ReSet_ESP32)
             {
               ESP.restart();
             }
@@ -479,7 +479,7 @@ void loop(void)
 
       String Arduino_Mega_2560_JSON_String;
       serializeJson(ARDUINO_MEGA_2560_JSON, Arduino_Mega_2560_JSON_String);
-      Events.send(Arduino_Mega_2560_JSON_String.c_str(), "json", millis());
+      Events.send(Arduino_Mega_2560_JSON_String.c_str(), "JSON", millis());
     }
 
     digitalWrite(WORK_LED, HIGH); /* Off */
