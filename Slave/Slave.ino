@@ -1,6 +1,8 @@
 /* By Abdullah As-Sadeed*/
 
-/* https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json */
+/* Board Manager URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json */
+
+/* LittleFS Uploader: https://github.com/earlephilhower/arduino-littlefs-upload/ */
 
 /*
   Board: "AI Thinker ESP32-CAM"
@@ -28,7 +30,7 @@
 
 #include <Confidentials.h> /* Local */
 
-#define WORK_LED 33
+#define LED_BUILTIN 33
 
 #define ARDUINO_MEGA_2560 Serial
 #define ARDUINO_MEGA_2560_BAUD_RATE 115200
@@ -40,19 +42,19 @@
 #define FLASH_LED 4
 
 AsyncWebServer Server(WEBSERVER_PORT);
-AsyncEventSource Events("/SSE");
+AsyncEventSource Events("/Server_Sent_Events");
 
 const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
 
-void SetUp_Work_LED()
+void SetUp_LED_BUILTIN()
 {
-  pinMode(WORK_LED, OUTPUT);
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void SetUp_WiFi(void)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   WiFi.mode(WIFI_STA);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
@@ -64,7 +66,7 @@ void SetUp_WiFi(void)
   {
   }
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Add_Common_Headers(AsyncWebServerResponse *Response)
@@ -129,7 +131,7 @@ String Process_Page(const String &Variable)
 
 void Handle_Root(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   File XHTML_Body_File = LittleFS.open("/Client.xhtml", "r");
 
@@ -142,12 +144,12 @@ void Handle_Root(AsyncWebServerRequest *Request)
   Add_Common_Headers(Response);
   Request->send(Response);
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Serve_FavIcon(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   File FavIcon_File = LittleFS.open("/favicon.ico", "r");
 
@@ -156,12 +158,12 @@ void Serve_FavIcon(AsyncWebServerRequest *Request)
   Add_Common_Headers(Response);
   Request->send(Response);
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Serve_CSS(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   File CSS_File = LittleFS.open("/Client.css", "r");
   String CSS = CSS_File.readString();
@@ -171,12 +173,12 @@ void Serve_CSS(AsyncWebServerRequest *Request)
   Add_Common_Headers(Response);
   Request->send(Response);
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Serve_JavaScript(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   File JavaScript_File = LittleFS.open("/Client.js", "r");
   String JavaScript = JavaScript_File.readString();
@@ -186,12 +188,12 @@ void Serve_JavaScript(AsyncWebServerRequest *Request)
   Add_Common_Headers(Response);
   Request->send(Response);
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 String Scan_WiFi(void)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   String Result = "";
 
@@ -252,12 +254,12 @@ String Scan_WiFi(void)
 
   return Result;
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Handle_Request_JSON(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   int Arguments = Request->args();
 
@@ -316,7 +318,7 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
     }
   }
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void Assign_URLs(void)
@@ -324,15 +326,15 @@ void Assign_URLs(void)
   Server.on("/", HTTP_GET, Handle_Root);
 
   Server.on("/favicon.ico", HTTP_GET, Serve_FavIcon);
-  Server.on("/CSS", HTTP_GET, Serve_CSS);
-  Server.on("/JavaScript", HTTP_GET, Serve_JavaScript);
+  Server.on("/Client.css", HTTP_GET, Serve_CSS);
+  Server.on("/Client.js", HTTP_GET, Serve_JavaScript);
 
   Server.on("/Requests", HTTP_GET, Handle_Request_JSON);
 }
 
 void Handle_Error_404(AsyncWebServerRequest *Request)
 {
-  digitalWrite(WORK_LED, LOW); /* On */
+  digitalWrite(LED_BUILTIN, LOW); /* On */
 
   String Response_String = "HTTP 404\n\n";
 
@@ -413,7 +415,7 @@ void Handle_Error_404(AsyncWebServerRequest *Request)
   Response->addHeader("Content-Disposition", "inline; filename=\"Bitscoper_IoT | Error 404\"");
   Request->send(Response);
 
-  digitalWrite(WORK_LED, HIGH); /* Off */
+  digitalWrite(LED_BUILTIN, HIGH); /* Off */
 }
 
 void SetUp_Server(void)
@@ -435,7 +437,7 @@ void SetUp_Flash_LED()
 
 void setup(void)
 {
-  SetUp_Work_LED();
+  SetUp_LED_BUILTIN();
 
   ARDUINO_MEGA_2560.begin(ARDUINO_MEGA_2560_BAUD_RATE);
   // ARDUINO_MEGA_2560.setDebugOutput(true);
@@ -467,7 +469,7 @@ void loop(void)
 {
   while (ARDUINO_MEGA_2560.available())
   {
-    digitalWrite(WORK_LED, LOW); /* On */
+    digitalWrite(LED_BUILTIN, LOW); /* On */
 
     JsonDocument ARDUINO_MEGA_2560_JSON;
 
@@ -482,6 +484,6 @@ void loop(void)
       Events.send(Arduino_Mega_2560_JSON_String.c_str(), "JSON", millis());
     }
 
-    digitalWrite(WORK_LED, HIGH); /* Off */
+    digitalWrite(LED_BUILTIN, HIGH); /* Off */
   }
 }

@@ -63,7 +63,7 @@ document.onkeydown = function (Key_Board) {
 };
 
 function Place_Value(Element_ID, Value) {
-  if (typeof Value !== "undefined") {
+  if (typeof Value !== "undefined" && Value !== "") {
     document.getElementById(Element_ID).innerHTML = Value;
   } else {
     return false;
@@ -71,138 +71,178 @@ function Place_Value(Element_ID, Value) {
 }
 
 if (!!window.EventSource) {
-  var source = new EventSource("/SSE");
+  function Connect_SSE() {
+    var source = new EventSource("/Server_Sent_Events");
 
-  source.addEventListener(
-    "open",
-    function () {
-      Show_Alert("Connected");
-    },
-    false
-  );
+    source.addEventListener(
+      "open",
+      function () {
+        Show_Alert("SSE has been connected.");
+      },
+      false
+    );
 
-  source.addEventListener(
-    "error",
-    function (Error) {
-      if (Error.target.readyState != EventSource.OPEN) {
-        Show_Alert("Disconnected");
-      }
-    },
-    false
-  );
+    source.addEventListener(
+      "error",
+      function (Error) {
+        if (Error.target.readyState != EventSource.OPEN) {
+          Show_Alert("SSE has been disconnected! Reconnecting ...");
+          setTimeout(Connect_SSE, 1000);
+        }
+      },
+      false
+    );
 
-  source.addEventListener(
-    "JSON",
-    function (JSON_String) {
-      var ESP32_UpTime = parseInt(JSON_String.lastEventId) / 1000;
-      var Parsed_JSON = JSON.parse(JSON_String.data);
+    source.addEventListener(
+      "JSON",
+      function (JSON_String) {
+        var ESP32_UpTime = parseInt(JSON_String.lastEventId) / 1000;
+        var Parsed_JSON = JSON.parse(JSON_String.data);
 
-      Place_Value(
-        "Arduino_Mega_2650_Compilation_Date_and_Time",
-        Parsed_JSON["Compilation_Date_and_Time"]
-      );
+        Place_Value(
+          "Arduino_Mega_2650_Compilation_Date_and_Time",
+          Parsed_JSON["Compilation_Date_and_Time"]
+        );
 
-      Place_Value("Arduino_Mega_2560_UpTime", Parsed_JSON["UpTime"]);
+        Place_Value("Arduino_Mega_2560_UpTime", Parsed_JSON["UpTime"]);
 
-      Place_Value("I2C_Devices", Parsed_JSON["I2C_Devices"]);
+        Place_Value("I2C_Devices", Parsed_JSON["I2C_Devices"]);
 
-      Place_Value("ESP32_UpTime", ESP32_UpTime);
+        Place_Value("ESP32_UpTime", ESP32_UpTime);
 
-      Place_Value(
-        "MPU9250_Acceleration_X",
-        Parsed_JSON["MPU9250"].Acceleration.X
-      );
-      Place_Value(
-        "MPU9250_Acceleration_Y",
-        Parsed_JSON["MPU9250"].Acceleration.Y
-      );
-      Place_Value(
-        "MPU9250_Acceleration_Z",
-        Parsed_JSON["MPU9250"].Acceleration.Z
-      );
-      Place_Value(
-        "MPU9250_Acceleration_Resultant",
-        Parsed_JSON["MPU9250"].Acceleration.Resultant
-      );
+        if (Parsed_JSON["MPU9250"]) {
+          Place_Value(
+            "MPU9250_Acceleration_X",
+            Parsed_JSON["MPU9250"].Acceleration.X
+          );
+          Place_Value(
+            "MPU9250_Acceleration_Y",
+            Parsed_JSON["MPU9250"].Acceleration.Y
+          );
+          Place_Value(
+            "MPU9250_Acceleration_Z",
+            Parsed_JSON["MPU9250"].Acceleration.Z
+          );
+          Place_Value(
+            "MPU9250_Acceleration_Resultant",
+            Parsed_JSON["MPU9250"].Acceleration.Resultant
+          );
 
-      Place_Value("MPU9250_Gyro_X", Parsed_JSON["MPU9250"].Gyro.X);
-      Place_Value("MPU9250_Gyro_Y", Parsed_JSON["MPU9250"].Gyro.Y);
-      Place_Value("MPU9250_Gyro_Z", Parsed_JSON["MPU9250"].Gyro.Z);
+          Place_Value("MPU9250_Gyro_X", Parsed_JSON["MPU9250"].Gyro.X);
+          Place_Value("MPU9250_Gyro_Y", Parsed_JSON["MPU9250"].Gyro.Y);
+          Place_Value("MPU9250_Gyro_Z", Parsed_JSON["MPU9250"].Gyro.Z);
 
-      Place_Value("MPU9250_Magneto_X", Parsed_JSON["MPU9250"].Magneto.X);
-      Place_Value("MPU9250_Magneto_Y", Parsed_JSON["MPU9250"].Magneto.Y);
-      Place_Value("MPU9250_Magneto_Z", Parsed_JSON["MPU9250"].Magneto.Z);
+          Place_Value("MPU9250_Magneto_X", Parsed_JSON["MPU9250"].Magneto.X);
+          Place_Value("MPU9250_Magneto_Y", Parsed_JSON["MPU9250"].Magneto.Y);
+          Place_Value("MPU9250_Magneto_Z", Parsed_JSON["MPU9250"].Magneto.Z);
 
-      Place_Value("MPU9250_Temperature", Parsed_JSON["MPU9250"].Temperature);
+          Place_Value(
+            "MPU9250_Temperature",
+            Parsed_JSON["MPU9250"].Temperature
+          );
+        }
 
-      Place_Value("BH1750_Light", Parsed_JSON["BH1750"]);
+        Place_Value("BH1750_Light", Parsed_JSON["BH1750"]);
 
-      Place_Value("BME280_Temperature", Parsed_JSON["BME280"].Temperature);
-      Place_Value("BME280_Humidity", Parsed_JSON["BME280"].Humidity);
-      Place_Value("BME280_Pressure", Parsed_JSON["BME280"].Pressure);
-      Place_Value("BME280_Altitude", Parsed_JSON["BME280"].Altitude);
+        if (Parsed_JSON["BME280"]) {
+          Place_Value("BME280_Temperature", Parsed_JSON["BME280"].Temperature);
+          Place_Value("BME280_Humidity", Parsed_JSON["BME280"].Humidity);
+          Place_Value("BME280_Pressure", Parsed_JSON["BME280"].Pressure);
+          Place_Value("BME280_Altitude", Parsed_JSON["BME280"].Altitude);
+        }
 
-      Place_Value("DSM501A_PM25_mgm3", Parsed_JSON["DSM501A"].PM25_mgm3);
-      Place_Value(
-        "DSM501A_PM25_pcs283ml",
-        Parsed_JSON["DSM501A"].PM25_pcs283ml
-      );
+        if (Parsed_JSON["DSM501A"]) {
+          Place_Value("DSM501A_PM25_mgm3", Parsed_JSON["DSM501A"].PM25_mgm3);
+          Place_Value(
+            "DSM501A_PM25_pcs283ml",
+            Parsed_JSON["DSM501A"].PM25_pcs283ml
+          );
 
-      Place_Value("DSM501A_PM1_mgm3", Parsed_JSON["DSM501A"].PM1_mgm3);
-      Place_Value("DSM501A_PM1_pcs283ml", Parsed_JSON["DSM501A"].PM1_pcs283ml);
+          Place_Value("DSM501A_PM1_mgm3", Parsed_JSON["DSM501A"].PM1_mgm3);
+          Place_Value(
+            "DSM501A_PM1_pcs283ml",
+            Parsed_JSON["DSM501A"].PM1_pcs283ml
+          );
+        }
 
-      Place_Value("MQ2", Parsed_JSON["MQ2"]);
-      Place_Value("MQ3", Parsed_JSON["MQ3"]);
-      Place_Value("MQ4", Parsed_JSON["MQ4"]);
-      Place_Value("MQ5", Parsed_JSON["MQ5"]);
-      Place_Value("MQ6", Parsed_JSON["MQ6"]);
-      Place_Value("MQ7", Parsed_JSON["MQ7"]);
-      Place_Value("MQ8", Parsed_JSON["MQ8"]);
-      Place_Value("MQ9", Parsed_JSON["MQ9"]);
-      Place_Value("MQ135", Parsed_JSON["MQ135"]);
+        Place_Value("MQ2", Parsed_JSON["MQ2"]);
+        Place_Value("MQ3", Parsed_JSON["MQ3"]);
+        Place_Value("MQ4", Parsed_JSON["MQ4"]);
+        Place_Value("MQ5", Parsed_JSON["MQ5"]);
+        Place_Value("MQ6", Parsed_JSON["MQ6"]);
+        Place_Value("MQ7", Parsed_JSON["MQ7"]);
+        Place_Value("MQ8", Parsed_JSON["MQ8"]);
+        Place_Value("MQ9", Parsed_JSON["MQ9"]);
+        Place_Value("MQ135", Parsed_JSON["MQ135"]);
 
-      Place_Value("IR_Radiation", Parsed_JSON["IR_Radiation"]);
+        Place_Value("IR_Radiation", Parsed_JSON["IR_Radiation"]);
 
-      Place_Value("HC_SR501", Parsed_JSON["Motion"].HC_SR501);
-      Place_Value("RCWL0516", Parsed_JSON["Motion"].RCWL0516);
+        if (Parsed_JSON["Motion"]) {
+          Place_Value("HC_SR501", Parsed_JSON["Motion"].HC_SR501);
+          Place_Value("RCWL0516", Parsed_JSON["Motion"].RCWL0516);
+        }
 
-      Place_Value("RDM6300_Card", Parsed_JSON["RDM6300"]);
+        Place_Value("RDM6300_Card", Parsed_JSON["RDM6300"]);
 
-      Place_Value("RC522_PICC_Type", Parsed_JSON["RC522"].PICC_Type);
-      Place_Value(
-        "RC522_MIFARE_Classic_Validity",
-        Parsed_JSON["RC522"].MIFARE_Classic_Validity
-      );
-      Place_Value("RC522_UID", Parsed_JSON["RC522"].UID);
+        if (Parsed_JSON["RC522"]) {
+          Place_Value("RC522_PICC_Type", Parsed_JSON["RC522"].PICC_Type);
+          Place_Value(
+            "RC522_MIFARE_Classic_Validity",
+            Parsed_JSON["RC522"].MIFARE_Classic_Validity
+          );
+          Place_Value("RC522_UID", Parsed_JSON["RC522"].UID);
+        }
 
-      Place_Value("NEO7M_Satellites", Parsed_JSON["NEO7M"].Satellites);
-      Place_Value("NEO7M_Latitude", Parsed_JSON["NEO7M"].Latitude);
-      Place_Value("NEO7M_Longitude", Parsed_JSON["NEO7M"].Longitude);
-      Place_Value("NEO7M_Speed", Parsed_JSON["NEO7M"].Speed);
-      Place_Value("NEO7M_Course", Parsed_JSON["NEO7M"].Course);
-      Place_Value("NEO7M_Altitude", Parsed_JSON["NEO7M"].Altitude);
-      Place_Value("NEO7M_HDOP", Parsed_JSON["NEO7M"].HDOP);
+        if (Parsed_JSON["NEO7M"]) {
+          Place_Value("NEO7M_Satellites", Parsed_JSON["NEO7M"].Satellites);
+          Place_Value("NEO7M_Latitude", Parsed_JSON["NEO7M"].Latitude);
+          Place_Value("NEO7M_Longitude", Parsed_JSON["NEO7M"].Longitude);
+          Place_Value("NEO7M_Speed", Parsed_JSON["NEO7M"].Speed);
+          Place_Value("NEO7M_Course", Parsed_JSON["NEO7M"].Course);
+          Place_Value("NEO7M_Altitude", Parsed_JSON["NEO7M"].Altitude);
+          Place_Value("NEO7M_HDOP", Parsed_JSON["NEO7M"].HDOP);
+        }
 
-      Place_Value("DS3231_Time", Parsed_JSON["DS3231"].Time);
+        if (Parsed_JSON["DS3231"]) {
+          Place_Value("DS3231_Time", Parsed_JSON["DS3231"].Time);
 
-      Place_Value("DS3231_Alarm_1_Time", Parsed_JSON["DS3231"].Alarm_1.Time);
-      Place_Value("DS3231_Alarm_1_Mode", Parsed_JSON["DS3231"].Alarm_1.Mode);
-      Place_Value(
-        "DS3231_Alarm_1_Is_Fired",
-        Parsed_JSON["DS3231"].Alarm_1.Is_Fired
-      );
+          Place_Value(
+            "DS3231_Alarm_1_Time",
+            Parsed_JSON["DS3231"].Alarm_1.Time
+          );
+          Place_Value(
+            "DS3231_Alarm_1_Mode",
+            Parsed_JSON["DS3231"].Alarm_1.Mode
+          );
+          Place_Value(
+            "DS3231_Alarm_1_Is_Fired",
+            Parsed_JSON["DS3231"].Alarm_1.Is_Fired
+          );
 
-      Place_Value("DS3231_Alarm_2_Time", Parsed_JSON["DS3231"].Alarm_2.Time);
-      Place_Value("DS3231_Alarm_2_Mode", Parsed_JSON["DS3231"].Alarm_2.Mode);
-      Place_Value(
-        "DS3231_Alarm_2_Is_Fired",
-        Parsed_JSON["DS3231"].Alarm_2.Is_Fired
-      );
+          Place_Value(
+            "DS3231_Alarm_2_Time",
+            Parsed_JSON["DS3231"].Alarm_2.Time
+          );
+          Place_Value(
+            "DS3231_Alarm_2_Mode",
+            Parsed_JSON["DS3231"].Alarm_2.Mode
+          );
+          Place_Value(
+            "DS3231_Alarm_2_Is_Fired",
+            Parsed_JSON["DS3231"].Alarm_2.Is_Fired
+          );
 
-      Place_Value("DS3231_Temperature", Parsed_JSON["DS3231"].Temperature);
-    },
-    false
-  );
+          Place_Value("DS3231_Temperature", Parsed_JSON["DS3231"].Temperature);
+        }
+      },
+      false
+    );
+  }
+
+  Connect_SSE();
+} else {
+  Show_Alert("SSE is not supported by this web browser!");
+  console.error("SSE is not supported by this web browser!");
 }
 
 Array.prototype.forEach.call(

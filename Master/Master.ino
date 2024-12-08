@@ -16,7 +16,7 @@ Programmer: "AVR ISP"
 
 #include <Seeed_BME280.h>
 
-#include <rdm6300.h>
+#include <rdm6300.h> /* https://github.com/arduino12/rdm6300/ */
 #include <MFRC522.h>
 
 #include <TinyGPSPlus.h>
