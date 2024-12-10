@@ -304,14 +304,12 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
           Add_Common_Headers(Response);
           Request->send(Response);
 
-          if (Request_JSON.containsKey("ReSet_ESP32"))
+          if (Request_JSON.containsKey("ReBoot_ESP32"))
           {
-            bool If_ReSet_ESP32 = Request_JSON["ReSet_ESP32"].as<bool>();
-
-            if (If_ReSet_ESP32)
+            if (Request_JSON["ReBoot_ESP32"].as<bool>())
             {
               ESP.restart();
-            }
+            };
           }
         }
       }

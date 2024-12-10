@@ -23,7 +23,7 @@
     </tr>
     <tr>
       <th style="text-align: left">Compilation Date &amp; Time</th>
-      <td id="Arduino_Mega_2650_Compilation_Date_and_Time" style="text-align: left">
+      <td id="Arduino_Mega_2560_Compilation_Date_and_Time" style="text-align: left">
         %ARDUINO_MEGA_2560_COMPILATION_DATE_AND_TIME%
       </td>
     </tr>
@@ -385,19 +385,19 @@
       </tr>
 
       <tr>
-        <th rowspan="2">Reset MCUs</th>
+        <th rowspan="2">Reboot MCUs</th>
         <th>Arduino Mega 2560</th>
         <th>ESP32</th>
       </tr>
       <tr>
         <td>
-          <button type="button" class="ReSet_Button" data-device="Arduino_Mega_2560">
-            Reset
+          <button type="button" class="ReBoot_Button" data-device="Arduino_Mega_2560">
+            Reboot
           </button>
         </td>
         <td>
-          <button type="button" class="ReSet_Button" data-device="ESP32">
-            Reset
+          <button type="button" class="ReBoot_Button" data-device="ESP32">
+            Reboot
           </button>
         </td>
       </tr>
@@ -462,6 +462,30 @@
             On
           </button>
           <button type="button" class="Relay_Button" data-number="2" data-state="0">
+            Off
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>Buzzer</th>
+        <td colspan="2">
+          <button type="button" class="Buzzer_Button" data-state="1">
+            On
+          </button>
+          <button type="button" class="Buzzer_Button" data-state="0">
+            Off
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>Flash LED</th>
+        <td colspan="2">
+          <button type="button" class="Flash_LED_Button" data-state="1">
+            On
+          </button>
+          <button type="button" class="Flash_LED_Button" data-state="0">
             Off
           </button>
         </td>

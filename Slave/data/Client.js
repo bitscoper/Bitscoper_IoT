@@ -99,12 +99,17 @@ if (!!window.EventSource) {
         var ESP32_UpTime = parseInt(JSON_String.lastEventId) / 1000;
         var Parsed_JSON = JSON.parse(JSON_String.data);
 
-        Place_Value(
-          "Arduino_Mega_2650_Compilation_Date_and_Time",
-          Parsed_JSON["Compilation_Date_and_Time"]
-        );
+        if (Parsed_JSON["Arduino_Mega_2560"]) {
+          Place_Value(
+            "Arduino_Mega_2560_Compilation_Date_and_Time",
+            Parsed_JSON["Arduino_Mega_2560"].Compilation_Date_and_Time
+          );
 
-        Place_Value("Arduino_Mega_2560_UpTime", Parsed_JSON["UpTime"]);
+          Place_Value(
+            "Arduino_Mega_2560_UpTime",
+            Parsed_JSON["Arduino_Mega_2560"].UpTime
+          );
+        }
 
         Place_Value("I2C_Devices", Parsed_JSON["I2C_Devices"]);
 
@@ -177,10 +182,9 @@ if (!!window.EventSource) {
 
         Place_Value("IR_Radiation", Parsed_JSON["IR_Radiation"]);
 
-        if (Parsed_JSON["Motion"]) {
-          Place_Value("HC_SR501", Parsed_JSON["Motion"].HC_SR501);
-          Place_Value("RCWL0516", Parsed_JSON["Motion"].RCWL0516);
-        }
+        Place_Value("HC_SR501", Parsed_JSON["HC_SR501"]);
+
+        Place_Value("RCWL0516", Parsed_JSON["RCWL0516"]);
 
         Place_Value("RDM6300_Card", Parsed_JSON["RDM6300"]);
 
@@ -246,13 +250,13 @@ if (!!window.EventSource) {
 }
 
 Array.prototype.forEach.call(
-  document.querySelectorAll(".ReSet_Button"),
-  function (ReSet_Button) {
-    ReSet_Button.onclick = function () {
-      ReSet_Button.innerHTML = "Requesting";
+  document.querySelectorAll(".ReBoot_Button"),
+  function (ReBoot_Button) {
+    ReBoot_Button.onclick = function () {
+      ReBoot_Button.innerHTML = "Requesting";
 
       fetch(
-        '/Requests?JSON={"ReSet_' + ReSet_Button.dataset.device + '": true}',
+        '/Requests?JSON={"ReBoot_' + ReBoot_Button.dataset.device + '": true}',
         {
           method: "GET",
         }
@@ -261,7 +265,7 @@ Array.prototype.forEach.call(
           return response.text();
         })
         .then(function (Response_Text) {
-          ReSet_Button.innerHTML = "Reboot";
+          ReBoot_Button.innerHTML = "Reboot";
           Show_Alert(Response_Text);
         });
     };
@@ -354,6 +358,43 @@ Array.prototype.forEach.call(
           '": ' +
           Relay_Button.dataset.state +
           "}",
+        {
+          method: "GET",
+        }
+      )
+        .then(function (Response) {
+          return Response.text();
+        })
+        .then(function (Response_Text) {
+          Show_Alert(Response_Text);
+        });
+    };
+  }
+);
+
+Array.prototype.forEach.call(
+  document.querySelectorAll(".Buzzer_Button"),
+  function (Buzzer_Button) {
+    Buzzer_Button.onclick = function () {
+      fetch('/Requests?JSON={"Buzzer": ' + Buzzer_Button.dataset.state + "}", {
+        method: "GET",
+      })
+        .then(function (Response) {
+          return Response.text();
+        })
+        .then(function (Response_Text) {
+          Show_Alert(Response_Text);
+        });
+    };
+  }
+);
+
+Array.prototype.forEach.call(
+  document.querySelectorAll(".Flash_LED_Button"),
+  function (Flash_LED_Button) {
+    Flash_LED_Button.onclick = function () {
+      fetch(
+        '/Requests?JSON={"Flash_LED": ' + Flash_LED_Button.dataset.state + "}",
         {
           method: "GET",
         }
