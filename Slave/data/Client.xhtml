@@ -268,30 +268,11 @@
   <table>
     <tbody>
       <tr>
-        <th colspan="2">RDM6300</th>
+        <th style="text-align: left">RDM6300 Reading</th>
+        <td id="RDM6300_Reading" style="text-align: left"></td>
       </tr>
       <tr>
-        <th style="text-align: left">Card</th>
-        <td id="RDM6300_Card" style="text-align: left"></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <table>
-    <tbody>
-      <tr>
-        <th colspan="2">RC522</th>
-      </tr>
-      <tr>
-        <th style="text-align: left">PICC Type</th>
-        <td id="RC522_PICC_Type" style="text-align: left"></td>
-      </tr>
-      <tr>
-        <th style="text-align: left">MIFARE Classic Validity</th>
-        <td id="RC522_MIFARE_Classic_Validity" style="text-align: left"></td>
-      </tr>
-      <tr>
-        <th style="text-align: left">UID</th>
+        <th style="text-align: left">RC522 UID</th>
         <td id="RC522_UID" style="text-align: left"></td>
       </tr>
     </tbody>
@@ -403,11 +384,7 @@
       </tr>
 
       <tr>
-        <th>
-          <span>I2C Devices</span>
-          <br />
-          <button type="button" id="I2C_Scan_Button">Scan</button>
-        </th>
+        <th>I2C Devices</th>
         <td colspan="2" id="I2C_Devices"></td>
       </tr>
 
@@ -418,10 +395,10 @@
       </tr>
       <tr>
         <td>
-          <button type="button" class="SG90_State_Button" data-state="Attach">
+          <button type="button" class="SG90_State_Button" data-state="1">
             Attach
           </button>
-          <button type="button" class="SG90_State_Button" data-state="Detach">
+          <button type="button" class="SG90_State_Button" data-state="0">
             Detach
           </button>
         </td>

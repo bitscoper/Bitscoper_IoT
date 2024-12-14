@@ -186,16 +186,9 @@ if (!!window.EventSource) {
 
         Place_Value("RCWL0516", Parsed_JSON["RCWL0516"]);
 
-        Place_Value("RDM6300_Card", Parsed_JSON["RDM6300"]);
+        Place_Value("RDM6300_Reading", Parsed_JSON["RDM6300"]);
 
-        if (Parsed_JSON["RC522"]) {
-          Place_Value("RC522_PICC_Type", Parsed_JSON["RC522"].PICC_Type);
-          Place_Value(
-            "RC522_MIFARE_Classic_Validity",
-            Parsed_JSON["RC522"].MIFARE_Classic_Validity
-          );
-          Place_Value("RC522_UID", Parsed_JSON["RC522"].UID);
-        }
+        Place_Value("RC522_UID", Parsed_JSON["RC522_UID"]);
 
         if (Parsed_JSON["NEO7M"]) {
           Place_Value("NEO7M_Satellites", Parsed_JSON["NEO7M"].Satellites);
@@ -272,29 +265,15 @@ Array.prototype.forEach.call(
   }
 );
 
-var I2C_Scan_Button = document.getElementById("I2C_Scan_Button");
-I2C_Scan_Button.onclick = function () {
-  I2C_Scan_Button.innerHTML = "Scanning";
-
-  fetch('/Requests?JSON={"Scan_I2C": ""}', {
-    method: "GET",
-  })
-    .then(function (Response) {
-      return Response.text();
-    })
-    .then(function (Response_Text) {
-      Show_Alert(Response_Text);
-
-      I2C_Scan_Button.innerHTML = "Scan";
-    });
-};
-
 Array.prototype.forEach.call(
   document.querySelectorAll(".SG90_State_Button"),
   function (SG90_State_Button) {
     SG90_State_Button.onclick = function () {
       fetch(
-        '/Requests?JSON={"' + SG90_State_Button.dataset.state + '_SG90": true}',
+        "/Requests?JSON=" +
+          JSON.stringify({
+            SG90_State: parseInt(SG90_State_Button.dataset.state),
+          }),
         {
           method: "GET",
         }
@@ -312,7 +291,10 @@ Array.prototype.forEach.call(
 var SG90_Position_Slider = document.getElementById("SG90_Position_Slider");
 SG90_Position_Slider.oninput = function () {
   fetch(
-    '/Requests?JSON={"SG90_Position": ' + SG90_Position_Slider.value + "}",
+    "/Requests?JSON=" +
+      JSON.stringify({
+        SG90_Position: parseInt(SG90_Position_Slider.value),
+      }),
     {
       method: "GET",
     }
@@ -330,10 +312,13 @@ Array.prototype.forEach.call(
   function (ULN2003_Step_Button) {
     ULN2003_Step_Button.onclick = function () {
       fetch(
-        '/Requests?JSON={"ULN2003_Steps": ' +
-          ULN2003_Step_Button.dataset.direction +
-          document.getElementById("ULN2003_Steps_Input").value +
-          "}",
+        "/Requests?JSON=" +
+          JSON.stringify({
+            ULN2003_Steps: parseInt(
+              ULN2003_Step_Button.dataset.direction +
+                document.getElementById("ULN2003_Steps_Input").value
+            ),
+          }),
         {
           method: "GET",
         }
@@ -353,11 +338,13 @@ Array.prototype.forEach.call(
   function (Relay_Button) {
     Relay_Button.onclick = function () {
       fetch(
-        '/Requests?JSON={"Relay_' +
-          Relay_Button.dataset.number +
-          '": ' +
-          Relay_Button.dataset.state +
-          "}",
+        "/Requests?JSON=" +
+          JSON.stringify({
+            Relay: {
+              Number: parseInt(Relay_Button.dataset.number),
+              State: parseInt(Relay_Button.dataset.state),
+            },
+          }),
         {
           method: "GET",
         }
@@ -376,9 +363,15 @@ Array.prototype.forEach.call(
   document.querySelectorAll(".Buzzer_Button"),
   function (Buzzer_Button) {
     Buzzer_Button.onclick = function () {
-      fetch('/Requests?JSON={"Buzzer": ' + Buzzer_Button.dataset.state + "}", {
-        method: "GET",
-      })
+      fetch(
+        "/Requests?JSON=" +
+          JSON.stringify({
+            Buzzer: parseInt(Buzzer_Button.dataset.state),
+          }),
+        {
+          method: "GET",
+        }
+      )
         .then(function (Response) {
           return Response.text();
         })
@@ -394,7 +387,10 @@ Array.prototype.forEach.call(
   function (Flash_LED_Button) {
     Flash_LED_Button.onclick = function () {
       fetch(
-        '/Requests?JSON={"Flash_LED": ' + Flash_LED_Button.dataset.state + "}",
+        "/Requests?JSON=" +
+          JSON.stringify({
+            Flash_LED: parseInt(Flash_LED_Button.dataset.state),
+          }),
         {
           method: "GET",
         }
@@ -413,9 +409,15 @@ var WiFi_Scan_Button = document.getElementById("WiFi_Scan_Button");
 WiFi_Scan_Button.onclick = function () {
   WiFi_Scan_Button.innerHTML = "Scanning";
 
-  fetch('/Requests?JSON={"Scan_WiFi": ""}', {
-    method: "GET",
-  })
+  fetch(
+    "/Requests?JSON=" +
+      JSON.stringify({
+        Scan_WiFi: "",
+      }),
+    {
+      method: "GET",
+    }
+  )
     .then(function (Response) {
       return Response.text();
     })

@@ -23,10 +23,10 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 
-#include <AsyncTCP.h>          /* https://github.com/me-no-dev/AsyncTCP/ */
-#include <ESPAsyncWebServer.h> /* https://github.com/me-no-dev/ESPAsyncWebServer/ */
+#include <AsyncTCP.h>          /* https://github.com/me-no-dev/AsyncTCP/ */ /* Manual Download */
+#include <ESPAsyncWebServer.h> /* https://github.com/me-no-dev/ESPAsyncWebServer/ */ /* Manual Download */
 
-#include <ArduinoJson.h>
+#include <ArduinoJson.h> /* https://github.com/bblanchon/ArduinoJson/ */
 
 #include <Confidentials.h> /* Local */
 

@@ -7,28 +7,31 @@ Programmer: "AVR ISP"
 */
 
 #include <Arduino.h>
+
+// #include <EEPROM.h>
+
 #include <Wire.h>
 #include <SPI.h>
 
-#include <MPU9250_WE.h>
+#include <MPU9250_WE.h> /* https://github.com/wollewald/MPU9250_WE/ */
 
-#include <BH1750.h>
+#include <BH1750.h> /* https://github.com/claws/BH1750/ */
 
-#include <Seeed_BME280.h>
+#include <Seeed_BME280.h> /* https://github.com/Seeed-Studio/Grove_BME280/ */
 
-#include <rdm6300.h> /* https://github.com/arduino12/rdm6300/ */
-#include <MFRC522.h>
+#include <rdm6300.h> /* https://github.com/arduino12/rdm6300/ */ /* Manual Download */
+#include <MFRC522.h>                                             /* https://github.com/miguelbalboa/rfid/ */
 
-#include <TinyGPSPlus.h>
+#include <TinyGPSPlus.h> /* https://github.com/mikalhart/TinyGPSPlus/ */
 
-#include <RTClib.h>
+#include <RTClib.h> /* https://github.com/adafruit/RTClib/ */
 
 #include <Stepper.h>
 #include <Servo.h>
 
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_SSD1306.h> /* https://github.com/adafruit/Adafruit_SSD1306/ */
 
-#include <ArduinoJson.h>
+#include <ArduinoJson.h> /* https://github.com/bblanchon/ArduinoJson/ */
 
 #define MPU9250_ADDRESS 0x69
 #define BH1750_ADDRESS 0x23
@@ -49,16 +52,16 @@ Programmer: "AVR ISP"
 
 #define IR_SENSOR A9
 
-#define HC_SR501 37
+#define HC_SR501_PIN 37
 
-#define RCWL0516 36
+#define RCWL0516_PIN 36
 
 #define RDM6300_UART Serial2
 
 #define RC522_SS 53
 #define RC522_RESET 5
 
-#define NEO7M Serial1
+#define NEO7M_UART Serial1
 #define NEO7M_BAUD_RATE 9600
 
 #define DS3231_INTERRUPT 2
@@ -159,12 +162,6 @@ struct DSM501A_Readings_Type
 };
 DSM501A_Readings_Type DSM501A_Readings;
 
-struct UART_Status_Type
-{
-  bool RDM6300, NEO7M, SIM900A, ESP32;
-};
-UART_Status_Type UART_Status;
-
 struct MQs_Readings_Type
 {
   float MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135;
@@ -182,15 +179,7 @@ struct NEO7M_Readings_Type
 };
 NEO7M_Readings_Type NEO7M_Readings;
 
-unsigned long RDM6300_Reading;
-
-struct RC522_Reading_Type
-{
-  String PICC_Type;
-  bool MIFARE_Classic_Validity;
-  unsigned long UID;
-};
-RC522_Reading_Type RC522_Reading;
+unsigned long RDM6300_Reading, RC522_UID;
 
 struct DS3231_Alarm_Type
 {
@@ -208,43 +197,20 @@ DS3231_OutPut_Type DS3231_OutPut;
 
 struct Active_Status_Type
 {
-  bool Arduino_Mega_2560, I2C_Devices, MPU9250, BH1750, BME280, DSM501A, MQs, IR, HC_SR591, RCL0516, RDM63400, RC522, NEO7M, DS3231;
+  bool Arduino_Mega_2560, I2C_Devices, MPU9250, BH1750, BME280, DSM501A, MQs, IR, HC_SR501, RCWL0516, RDM6300, RC522, NEO7M, DS3231;
+
+  Active_Status_Type() : Arduino_Mega_2560(false), I2C_Devices(false), MPU9250(false), BH1750(false), BME280(false), DSM501A(false), MQs(false), IR(false), HC_SR501(false), RCWL0516(false), RDM6300(false), RC522(false), NEO7M(false), DS3231(false) {}
 };
 Active_Status_Type Active_Status;
 
 const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
 
-void (*ReBoot_Arduino_Mega_2560)(void) = 0;
-
-void ReSet_Active_Status(void)
-{
-  Active_Status.Arduino_Mega_2560 = false;
-  Active_Status.I2C_Devices = true;
-  Active_Status.MPU9250 = false;
-  Active_Status.BH1750 = false;
-  Active_Status.BME280 = false;
-  Active_Status.DSM501A = false;
-  Active_Status.MQs = false;
-  Active_Status.IR = false;
-  Active_Status.HC_SR591 = false;
-  Active_Status.RCL0516 = false;
-  Active_Status.RDM63400 = false;
-  Active_Status.RC522 = false;
-  Active_Status.NEO7M = false;
-  Active_Status.DS3231 = false;
-}
+void (*ReBoot_Arduino_Mega_2560)(void) = nullptr;
 
 void SetUp_Buzzer(void)
 {
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
-}
-
-void SetUp_ESP32(void)
-{
-  ESP32.begin(ESP32_BAUD_RATE);
-
-  UART_Status.ESP32 = ESP32;
 }
 
 void Scan_I2C(void)
@@ -310,8 +276,7 @@ void SetUp_DSM501A(void)
 void SetUp_RDM6300(void)
 {
   RDM6300_UART.begin(RDM6300_BAUDRATE);
-
-  UART_Status.RDM6300 = RDM6300_UART;
+  RDM6300.begin(&RDM6300_UART);
 }
 
 void SetUp_RC522(void)
@@ -322,13 +287,6 @@ void SetUp_RC522(void)
   {
     RC522_Key.keyByte[Iteration] = 0xFF;
   }
-}
-
-void SetUp_NEO7M(void)
-{
-  NEO7M.begin(NEO7M_BAUD_RATE);
-
-  UART_Status.NEO7M = NEO7M;
 }
 
 void On_Alarm(void)
@@ -419,27 +377,22 @@ void SetUp_SIM900A(void)
 {
   SIM900A.begin(SIM900A_BAUD_RATE);
 
-  UART_Status.SIM900A = SIM900A;
+  SIM900A.print("ATE0\r\n"); /* Disable Command Echo */
 
-  if (UART_Status.SIM900A)
+  while (!SIM900A.available())
   {
-    SIM900A.print("ATE0\r\n"); /* Disable Command Echo */
+  };
 
-    while (!SIM900A.available())
-    {
-    };
-
-    SIM900A.print("AT+CMEE=2\r\n"); /* Verbose Error */
-  }
+  SIM900A.print("AT+CMEE=2\r\n"); /* Verbose Error */
 }
 
 void setup(void)
 {
-  ReSet_Active_Status();
+  Active_Status = Active_Status_Type();
 
   SetUp_Buzzer();
 
-  SetUp_ESP32();
+  ESP32.begin(ESP32_BAUD_RATE);
 
   Wire.begin();
 
@@ -453,13 +406,13 @@ void setup(void)
 
   SetUp_DSM501A();
 
-  pinMode(RCWL0516, INPUT);
+  pinMode(RCWL0516_PIN, INPUT);
 
   SetUp_RDM6300();
 
   SetUp_RC522();
 
-  SetUp_NEO7M();
+  NEO7M_UART.begin(NEO7M_BAUD_RATE);
 
   SetUp_DS3231();
 
@@ -570,9 +523,9 @@ void Read_NEO7M(void)
 {
   if (Active_Status.NEO7M)
   {
-    while (NEO7M.available())
+    while (NEO7M_UART.available())
     {
-      GPS.encode(NEO7M.read());
+      GPS.encode(NEO7M_UART.read());
     }
 
     NEO7M_Readings.Satellites = GPS.satellites.value();
@@ -589,24 +542,15 @@ void Read_RC522(void)
 {
   if (Active_Status.RC522)
   {
-    RC522.PICC_IsNewCardPresent(); /* Needed to read. */
+    RC522.PICC_IsNewCardPresent(); /* Needed to read */
 
     if (RC522.PICC_ReadCardSerial())
     {
       MFRC522::PICC_Type PICC_Type = RC522.PICC_GetType(RC522.uid.sak);
-      RC522_Reading.PICC_Type = RC522.PICC_GetTypeName(PICC_Type);
 
-      if (PICC_Type != MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type != MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type != MFRC522::PICC_TYPE_MIFARE_4K)
+      if (PICC_Type == MFRC522::PICC_TYPE_MIFARE_MINI && PICC_Type == MFRC522::PICC_TYPE_MIFARE_1K && PICC_Type == MFRC522::PICC_TYPE_MIFARE_4K)
       {
-        RC522_Reading.MIFARE_Classic_Validity = false;
-
-        RC522_Reading.UID = 0;
-      }
-      else
-      {
-        RC522_Reading.MIFARE_Classic_Validity = true;
-
-        RC522_Reading.UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24) | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16) | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8) | static_cast<unsigned long>(RC522.uid.uidByte[3]);
+        RC522_UID = (static_cast<unsigned long>(RC522.uid.uidByte[0]) << 24) | (static_cast<unsigned long>(RC522.uid.uidByte[1]) << 16) | (static_cast<unsigned long>(RC522.uid.uidByte[2]) << 8) | static_cast<unsigned long>(RC522.uid.uidByte[3]);
 
         RC522.PICC_HaltA();
         RC522.PCD_StopCrypto1();
@@ -697,19 +641,19 @@ void Get_Readings(void)
     IR_Radiation = analogRead(IR_SENSOR);
   }
 
-  if (Active_Status.HC_SR591)
+  if (Active_Status.HC_SR501)
   {
-    HC_SR501_Motion = digitalRead(HC_SR501);
+    HC_SR501_Motion = digitalRead(HC_SR501_PIN);
   }
 
-  if (Active_Status.RCL0516)
+  if (Active_Status.RCWL0516)
   {
-    RCWL0516_Motion = digitalRead(RCWL0516);
+    RCWL0516_Motion = digitalRead(RCWL0516_PIN);
   }
 
   Read_NEO7M();
 
-  if (Active_Status.RDM63400)
+  if (Active_Status.RDM6300)
   {
     RDM6300_Reading = RDM6300.get_tag_id();
   }
@@ -812,28 +756,24 @@ void Send_JSON(void)
     Readings_JSON["IR_Radiation"] = IR_Radiation;
   }
 
-  if (Active_Status.HC_SR591)
+  if (Active_Status.HC_SR501)
   {
     Readings_JSON["HC_SR501"] = HC_SR501_Motion;
   }
 
-  if (Active_Status.RCL0516)
+  if (Active_Status.RCWL0516)
   {
     Readings_JSON["RCWL0516"] = RCWL0516_Motion;
   }
 
-  if (Active_Status.RDM63400)
+  if (Active_Status.RDM6300)
   {
     Readings_JSON["RDM6300"] = RDM6300_Reading;
   }
 
   if (Active_Status.RC522)
   {
-    JsonDocument RC522_JSON;
-    RC522_JSON["PICC_Type"] = RC522_Reading.PICC_Type;
-    RC522_JSON["MIFARE_Classic_Validity"] = RC522_Reading.MIFARE_Classic_Validity;
-    RC522_JSON["UID"] = RC522_Reading.UID;
-    Readings_JSON["RC522"] = RC522_JSON;
+    Readings_JSON["RC522_UID"] = RC522_UID;
   }
 
   if (Active_Status.NEO7M)
@@ -886,6 +826,24 @@ void Receive_JSON(void)
     {
       digitalWrite(LED_BUILTIN, HIGH);
 
+      if (ESP32_JSON.containsKey("Active_Status"))
+      {
+        Active_Status.Arduino_Mega_2560 = ESP32_JSON["Active_Status"]["Arduino_Mega_2560"].as<bool>();
+        Active_Status.I2C_Devices = ESP32_JSON["Active_Status"]["I2C_Devices"].as<bool>();
+        Active_Status.MPU9250 = ESP32_JSON["Active_Status"]["MPU9250"].as<bool>();
+        Active_Status.BH1750 = ESP32_JSON["Active_Status"]["BH1750"].as<bool>();
+        Active_Status.BME280 = ESP32_JSON["Active_Status"]["BME280"].as<bool>();
+        Active_Status.DSM501A = ESP32_JSON["Active_Status"]["DSM501A"].as<bool>();
+        Active_Status.MQs = ESP32_JSON["Active_Status"]["MQs"].as<bool>();
+        Active_Status.IR = ESP32_JSON["Active_Status"]["IR"].as<bool>();
+        Active_Status.HC_SR501 = ESP32_JSON["Active_Status"]["HC_SR501"].as<bool>();
+        Active_Status.RCWL0516 = ESP32_JSON["Active_Status"]["RCWL0516"].as<bool>();
+        Active_Status.RDM6300 = ESP32_JSON["Active_Status"]["RDM6300"].as<bool>();
+        Active_Status.RC522 = ESP32_JSON["Active_Status"]["RC522"].as<bool>();
+        Active_Status.NEO7M = ESP32_JSON["Active_Status"]["NEO7M"].as<bool>();
+        Active_Status.DS3231 = ESP32_JSON["Active_Status"]["DS3231"].as<bool>();
+      }
+
       if (ESP32_JSON.containsKey("ReBoot_Arduino_Mega_2560"))
       {
         if (ESP32_JSON["ReBoot_Arduino_Mega_2560"].as<bool>())
@@ -894,14 +852,14 @@ void Receive_JSON(void)
         };
       }
 
-      if (ESP32_JSON.containsKey("Set_DS3231_Time"))
+      if (ESP32_JSON.containsKey("Set_DS3231_Time")) // TODO: Add in Client
       {
         DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Time"].as<long>());
 
         DS3231.adjust(Time);
       }
 
-      if (ESP32_JSON.containsKey("Set_DS3231_Alarm"))
+      if (ESP32_JSON.containsKey("Set_DS3231_Alarm")) // TODO: Add in Client
       {
         unsigned int Number = ESP32_JSON["Set_DS3231_Alarm"]["Number"].as<unsigned int>();
         DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Alarm"]["Time"].as<long>());
@@ -959,11 +917,25 @@ void Receive_JSON(void)
         }
       }
 
-      if (ESP32_JSON.containsKey("Clear_DS3231_Alarm"))
+      if (ESP32_JSON.containsKey("Clear_DS3231_Alarm")) // TODO: Add in Client
       {
         unsigned int Number = ESP32_JSON["Clear_DS3231_Alarm"].as<unsigned int>();
 
         DS3231.clearAlarm(Number);
+      }
+
+      if (ESP32_JSON.containsKey("SG90_State"))
+      {
+        bool SG90_State = ESP32_JSON["SG90_State"].as<bool>();
+
+        if (SG90_State)
+        {
+          Attach_SG90();
+        }
+        else if (!SG90_State)
+        {
+          SG90.detach();
+        }
       }
 
       if (ESP32_JSON.containsKey("SG90_Position"))
@@ -973,22 +945,6 @@ void Receive_JSON(void)
         SG90.write(SG90_Position);
       }
 
-      if (ESP32_JSON.containsKey("Detach_SG90"))
-      {
-        if (ESP32_JSON["Detach_SG90"].as<bool>())
-        {
-          SG90.detach();
-        };
-      }
-
-      if (ESP32_JSON.containsKey("Attach_SG90"))
-      {
-        if (ESP32_JSON["Attach_SG90"].as<bool>())
-        {
-          Attach_SG90();
-        };
-      }
-
       if (ESP32_JSON.containsKey("ULN2003_Steps"))
       {
         signed int ULN2003_Steps = ESP32_JSON["ULN2003_Steps"].as<signed int>();
@@ -996,31 +952,27 @@ void Receive_JSON(void)
         ULN2003.step(ULN2003_Steps);
       }
 
-      if (ESP32_JSON.containsKey("Relay_1"))
+      if (ESP32_JSON.containsKey("Relay"))
       {
-        bool Relay_1_State = ESP32_JSON["Relay_1"].as<bool>();
+        unsigned int Relay_Number = ESP32_JSON["Relay"]["Number"].as<unsigned int>(), Relay;
+        bool Relay_State = ESP32_JSON["Relay"]["State"].as<bool>();
 
-        if (Relay_1_State)
+        if (Relay_Number == 1)
         {
-          digitalWrite(RELAY_1, LOW); /* On */
+          Relay = RELAY_1;
         }
-        else if (!Relay_1_State)
+        else if (Relay_Number == 2)
         {
-          digitalWrite(RELAY_1, HIGH); /* Off */
+          Relay = RELAY_2;
         }
-      }
 
-      if (ESP32_JSON.containsKey("Relay_2"))
-      {
-        bool Relay_2_State = ESP32_JSON["Relay_2"].as<bool>();
-
-        if (Relay_2_State)
+        if (Relay_State)
         {
-          digitalWrite(RELAY_2, LOW); /* On */
+          digitalWrite(Relay, LOW); /* On */
         }
-        else if (!Relay_2_State)
+        else if (!Relay_State)
         {
-          digitalWrite(RELAY_2, HIGH); /* Off */
+          digitalWrite(Relay, HIGH); /* Off */
         }
       }
 
@@ -1038,7 +990,7 @@ void Receive_JSON(void)
         }
       }
 
-      if (ESP32_JSON.containsKey("SIM900A_AT"))
+      if (ESP32_JSON.containsKey("SIM900A_AT")) // TODO: Add in Client
       {
         String SIM900A_AT = ESP32_JSON["SIM900A_AT"].as<String>();
 
