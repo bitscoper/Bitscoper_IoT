@@ -16,11 +16,7 @@ function Show_Alert(Message) {
       setTimeout(function () {
         Alert_Box.remove();
       }, 4000);
-    } else {
-      return false;
     }
-  } else {
-    return false;
   }
 }
 
@@ -64,9 +60,27 @@ document.onkeydown = function (Key_Board) {
 
 function Place_Value(Element_ID, Value) {
   if (typeof Value !== "undefined" && Value !== "") {
-    document.getElementById(Element_ID).innerHTML = Value;
-  } else {
-    return false;
+    if (
+      Element_ID == "Arduino_Mega_2560_UpTime" ||
+      Element_ID == "ESP32_UpTime"
+    ) {
+      document.getElementById(Element_ID).innerHTML = parseFloat(
+        Value / 1000
+      ).toFixed(2) + " s";
+    } else if (Element_ID == "DS3231_Time") {
+      var Time = new Date(Value * 1000);
+
+      document.getElementById(Element_ID).innerHTML = Time.toLocaleString();
+    } else if (
+      Element_ID == "DS3231_Alarm_1_Time" ||
+      Element_ID == "DS3231_Alarm_2_Time"
+    ) {
+      var Time = new Date(Value * 1000);
+
+      document.getElementById(Element_ID).innerHTML = Time.toLocaleString();
+    } else {
+      document.getElementById(Element_ID).innerHTML = Value;
+    }
   }
 }
 
@@ -94,22 +108,15 @@ if (!!window.EventSource) {
     );
 
     source.addEventListener(
-      "JSON",
+      "SSE",
       function (JSON_String) {
-        var ESP32_UpTime = parseInt(JSON_String.lastEventId) / 1000;
+        var ESP32_UpTime = parseInt(JSON_String.lastEventId);
         var Parsed_JSON = JSON.parse(JSON_String.data);
 
-        if (Parsed_JSON["Arduino_Mega_2560"]) {
-          Place_Value(
-            "Arduino_Mega_2560_Compilation_Date_and_Time",
-            Parsed_JSON["Arduino_Mega_2560"].Compilation_Date_and_Time
-          );
-
-          Place_Value(
-            "Arduino_Mega_2560_UpTime",
-            Parsed_JSON["Arduino_Mega_2560"].UpTime
-          );
-        }
+        Place_Value(
+          "Arduino_Mega_2560_UpTime",
+          Parsed_JSON["Arduino_Mega_2560_UpTime"]
+        );
 
         Place_Value("I2C_Devices", Parsed_JSON["I2C_Devices"]);
 
@@ -316,8 +323,31 @@ Array.prototype.forEach.call(
           JSON.stringify({
             ULN2003_Steps: parseInt(
               ULN2003_Step_Button.dataset.direction +
-                document.getElementById("ULN2003_Steps_Input").value
+                document.getElementById("ULN2003_Steps_InPut").value
             ),
+          }),
+        {
+          method: "GET",
+        }
+      )
+        .then(function (Response) {
+          return Response.text();
+        })
+        .then(function (Response_Text) {
+          Show_Alert(Response_Text);
+        });
+    };
+  }
+);
+
+Array.prototype.forEach.call(
+  document.querySelectorAll(".Buzzer_Button"),
+  function (Buzzer_Button) {
+    Buzzer_Button.onclick = function () {
+      fetch(
+        "/Requests?JSON=" +
+          JSON.stringify({
+            Buzzer: parseInt(Buzzer_Button.dataset.state),
           }),
         {
           method: "GET",
@@ -359,14 +389,79 @@ Array.prototype.forEach.call(
   }
 );
 
+var DS3231_Time_InPut = document.getElementById("DS3231_Time_InPut");
+DS3231_Time_InPut.onchange = function () {
+  var Time = new Date(DS3231_Time_InPut.value);
+
+  fetch(
+    "/Requests?JSON=" +
+      JSON.stringify({
+        Set_DS3231_Time: Math.floor(Time.getTime() / 1000),
+      }),
+    {
+      method: "GET",
+    }
+  )
+    .then(function (Response) {
+      return Response.text();
+    })
+    .then(function (Response_Text) {
+      Show_Alert(Response_Text);
+    });
+};
+
+document.getElementById("DS3231_Alarm_1_Time_InPut").onclick = function () {
+  Set_DS3231_Alarm(1);
+};
+document.getElementById("DS3231_Alarm_1_Mode_InPut").onchange = function () {
+  Set_DS3231_Alarm(1);
+};
+
+document.getElementById("DS3231_Alarm_2_Time_InPut").onclick = function () {
+  Set_DS3231_Alarm(2);
+};
+document.getElementById("DS3231_Alarm_2_Mode_InPut").onchange = function () {
+  Set_DS3231_Alarm(2);
+};
+
+function Set_DS3231_Alarm(Number) {
+  var Time = new Date(
+    document.getElementById("DS3231_Alarm_" + Number + "_Time_InPut").value
+  );
+
+  fetch(
+    "/Requests?JSON=" +
+      JSON.stringify({
+        Set_DS3231_Alarm: {
+          Number: Number,
+          Time: Math.floor(Time.getTime() / 1000),
+          Mode: document.getElementById(
+            "DS3231_Alarm_" + Number + "_Mode_InPut"
+          ).value,
+        },
+      }),
+    {
+      method: "GET",
+    }
+  )
+    .then(function (Response) {
+      return Response.text();
+    })
+    .then(function (Response_Text) {
+      Show_Alert(Response_Text);
+    });
+}
+
 Array.prototype.forEach.call(
-  document.querySelectorAll(".Buzzer_Button"),
-  function (Buzzer_Button) {
-    Buzzer_Button.onclick = function () {
+  document.querySelectorAll(".DS3231_Alarm_Clear_Button"),
+  function (DS3231_Alarm_Clear_Button) {
+    DS3231_Alarm_Clear_Button.onclick = function () {
       fetch(
         "/Requests?JSON=" +
           JSON.stringify({
-            Buzzer: parseInt(Buzzer_Button.dataset.state),
+            Clear_DS3231_Alarm: parseInt(
+              DS3231_Alarm_Clear_Button.dataset.number
+            ),
           }),
         {
           method: "GET",

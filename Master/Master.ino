@@ -197,21 +197,13 @@ DS3231_OutPut_Type DS3231_OutPut;
 
 struct Active_Status_Type
 {
-  bool Arduino_Mega_2560, I2C_Devices, MPU9250, BH1750, BME280, DSM501A, MQs, IR, HC_SR501, RCWL0516, RDM6300, RC522, NEO7M, DS3231;
+  bool I2C_Devices, MPU9250, BH1750, BME280, DSM501A, MQs, IR, HC_SR501, RCWL0516, RDM6300, RC522, NEO7M, DS3231;
 
-  Active_Status_Type() : Arduino_Mega_2560(false), I2C_Devices(false), MPU9250(false), BH1750(false), BME280(false), DSM501A(false), MQs(false), IR(false), HC_SR501(false), RCWL0516(false), RDM6300(false), RC522(false), NEO7M(false), DS3231(false) {}
+  Active_Status_Type() : I2C_Devices(false), MPU9250(false), BH1750(false), BME280(false), DSM501A(false), MQs(false), IR(false), HC_SR501(false), RCWL0516(false), RDM6300(false), RC522(false), NEO7M(false), DS3231(false) {}
 };
-Active_Status_Type Active_Status;
-
-const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
+Active_Status_Type Active_Status = Active_Status_Type(); // TODO: Add in Client
 
 void (*ReBoot_Arduino_Mega_2560)(void) = nullptr;
-
-void SetUp_Buzzer(void)
-{
-  pinMode(BUZZER, OUTPUT);
-  digitalWrite(BUZZER, LOW);
-}
 
 void Scan_I2C(void)
 {
@@ -331,6 +323,22 @@ void SetUp_SG90(void)
   SG90.write(SG90_STARTUP_POSITION);
 }
 
+void SetUp_SSD1306(void)
+{
+  I2C_Status.SSD1306 = SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS);
+
+  if (I2C_Status.SSD1306)
+  {
+    SSD1306.clearDisplay();
+
+    SSD1306.setTextSize(1);
+    SSD1306.setTextColor(SSD1306_WHITE);
+    SSD1306.setCursor(25, 0);
+    SSD1306.println(F("Bitscoper_IoT"));
+    SSD1306.display();
+  }
+}
+
 void SetUp_BuiltIn_LED(void)
 {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -348,20 +356,10 @@ void SetUp_RGB_LED(void)
   digitalWrite(RGB_LED_BLUE, LOW);
 }
 
-void SetUp_SSD1306(void)
+void SetUp_Buzzer(void)
 {
-  I2C_Status.SSD1306 = SSD1306.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDRESS);
-
-  if (I2C_Status.SSD1306)
-  {
-    SSD1306.clearDisplay();
-
-    SSD1306.setTextSize(1);
-    SSD1306.setTextColor(SSD1306_WHITE);
-    SSD1306.setCursor(25, 0);
-    SSD1306.println(F("Bitscoper_IoT"));
-    SSD1306.display();
-  }
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(BUZZER, LOW);
 }
 
 void SetUp_Relays()
@@ -388,10 +386,6 @@ void SetUp_SIM900A(void)
 
 void setup(void)
 {
-  Active_Status = Active_Status_Type();
-
-  SetUp_Buzzer();
-
   ESP32.begin(ESP32_BAUD_RATE);
 
   Wire.begin();
@@ -420,11 +414,13 @@ void setup(void)
 
   ULN2003.setSpeed(ULN2003_SPEED);
 
+  SetUp_SSD1306();
+
   SetUp_BuiltIn_LED();
 
   SetUp_RGB_LED();
 
-  SetUp_SSD1306();
+  SetUp_Buzzer();
 
   SetUp_Relays();
 
@@ -561,7 +557,7 @@ void Read_RC522(void)
 
 void Read_DS3231(void)
 {
-  if (Active_Status.DSM501A)
+  if (Active_Status.DS3231)
   {
     if (I2C_Status.DS3231)
     {
@@ -669,13 +665,7 @@ void Send_JSON(void)
 {
   JsonDocument Readings_JSON;
 
-  if (Active_Status.Arduino_Mega_2560)
-  {
-    JsonDocument Arduino_Mega_2560_JSON;
-    Arduino_Mega_2560_JSON["Compilation_Date_and_Time"] = Compilation_Date_and_Time;
-    Arduino_Mega_2560_JSON["UpTime"] = millis();
-    Readings_JSON["Arduino_Mega_2560"] = Arduino_Mega_2560_JSON;
-  }
+  Readings_JSON["Arduino_Mega_2560_UpTime"] = millis();
 
   if (Active_Status.I2C_Devices)
   {
@@ -828,7 +818,6 @@ void Receive_JSON(void)
 
       if (ESP32_JSON.containsKey("Active_Status"))
       {
-        Active_Status.Arduino_Mega_2560 = ESP32_JSON["Active_Status"]["Arduino_Mega_2560"].as<bool>();
         Active_Status.I2C_Devices = ESP32_JSON["Active_Status"]["I2C_Devices"].as<bool>();
         Active_Status.MPU9250 = ESP32_JSON["Active_Status"]["MPU9250"].as<bool>();
         Active_Status.BH1750 = ESP32_JSON["Active_Status"]["BH1750"].as<bool>();
@@ -852,44 +841,44 @@ void Receive_JSON(void)
         };
       }
 
-      if (ESP32_JSON.containsKey("Set_DS3231_Time")) // TODO: Add in Client
+      if (ESP32_JSON.containsKey("Set_DS3231_Time"))
       {
         DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Time"].as<long>());
 
         DS3231.adjust(Time);
       }
 
-      if (ESP32_JSON.containsKey("Set_DS3231_Alarm")) // TODO: Add in Client
+      if (ESP32_JSON.containsKey("Set_DS3231_Alarm"))
       {
         unsigned int Number = ESP32_JSON["Set_DS3231_Alarm"]["Number"].as<unsigned int>();
         DateTime Time = DateTime(ESP32_JSON["Set_DS3231_Alarm"]["Time"].as<long>());
-        String Match = ESP32_JSON["Set_DS3231_Alarm"]["Match"];
+        String Mode = ESP32_JSON["Set_DS3231_Alarm"]["Mode"];
 
         if (Number == 1)
         {
           DS3231.clearAlarm(1);
 
-          if (Match == "Per Second")
+          if (Mode == "Per Second")
           {
             DS3231.setAlarm1(Time, DS3231_A1_PerSecond);
           }
-          else if (Match == "Second")
+          else if (Mode == "Second")
           {
             DS3231.setAlarm1(Time, DS3231_A1_Second);
           }
-          else if (Match == "Minute")
+          else if (Mode == "Minute")
           {
             DS3231.setAlarm1(Time, DS3231_A1_Minute);
           }
-          else if (Match == "Hour")
+          else if (Mode == "Hour")
           {
             DS3231.setAlarm1(Time, DS3231_A1_Hour);
           }
-          else if (Match == "Date")
+          else if (Mode == "Date")
           {
             DS3231.setAlarm1(Time, DS3231_A1_Date);
           }
-          else if (Match == "Day")
+          else if (Mode == "Day")
           {
             DS3231.setAlarm1(Time, DS3231_A1_Day);
           }
@@ -898,30 +887,28 @@ void Receive_JSON(void)
         {
           DS3231.clearAlarm(2);
 
-          if (Match == "Minute")
+          if (Mode == "Minute")
           {
             DS3231.setAlarm2(Time, DS3231_A2_Minute);
           }
-          else if (Match == "Hour")
+          else if (Mode == "Hour")
           {
             DS3231.setAlarm2(Time, DS3231_A2_Hour);
           }
-          else if (Match == "Date")
+          else if (Mode == "Date")
           {
             DS3231.setAlarm2(Time, DS3231_A2_Date);
           }
-          else if (Match == "Day")
+          else if (Mode == "Day")
           {
             DS3231.setAlarm2(Time, DS3231_A2_Day);
           }
         }
       }
 
-      if (ESP32_JSON.containsKey("Clear_DS3231_Alarm")) // TODO: Add in Client
+      if (ESP32_JSON.containsKey("Clear_DS3231_Alarm"))
       {
-        unsigned int Number = ESP32_JSON["Clear_DS3231_Alarm"].as<unsigned int>();
-
-        DS3231.clearAlarm(Number);
+        DS3231.clearAlarm(ESP32_JSON["Clear_DS3231_Alarm"].as<unsigned int>());
       }
 
       if (ESP32_JSON.containsKey("SG90_State"))
@@ -952,6 +939,20 @@ void Receive_JSON(void)
         ULN2003.step(ULN2003_Steps);
       }
 
+      if (ESP32_JSON.containsKey("Buzzer"))
+      {
+        bool Buzzer_State = ESP32_JSON["Buzzer"].as<bool>();
+
+        if (Buzzer_State)
+        {
+          digitalWrite(BUZZER, HIGH);
+        }
+        else if (!Buzzer_State)
+        {
+          digitalWrite(BUZZER, LOW);
+        }
+      }
+
       if (ESP32_JSON.containsKey("Relay"))
       {
         unsigned int Relay_Number = ESP32_JSON["Relay"]["Number"].as<unsigned int>(), Relay;
@@ -973,20 +974,6 @@ void Receive_JSON(void)
         else if (!Relay_State)
         {
           digitalWrite(Relay, HIGH); /* Off */
-        }
-      }
-
-      if (ESP32_JSON.containsKey("Buzzer"))
-      {
-        bool Buzzer_State = ESP32_JSON["Buzzer"].as<bool>();
-
-        if (Buzzer_State)
-        {
-          digitalWrite(BUZZER, HIGH);
-        }
-        else if (!Buzzer_State)
-        {
-          digitalWrite(BUZZER, LOW);
         }
       }
 
@@ -1037,10 +1024,10 @@ void loop(void)
   Receive_JSON();
 }
 
-// TODO:
-// Buy New: BME280, RCWL0516
 // DSM501A Physical Test and Calibration
+// Fix DS3231's: Alarm Time Output, Alarm Clearance and Interrupt
+// Hardware Failure: RCWL0156, RC522, BME280, MPU9250
+// Inform Client from SIM900A
 // NEO7M Physical Test
 // SIM900A Registration Failure
 // Set Usage of RGB LED
-// Test DS3231 Alarm Time Output and INT

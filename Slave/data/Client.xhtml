@@ -22,12 +22,6 @@
       <th colspan="2">Arduino Mega 2560</th>
     </tr>
     <tr>
-      <th style="text-align: left">Compilation Date &amp; Time</th>
-      <td id="Arduino_Mega_2560_Compilation_Date_and_Time" style="text-align: left">
-        %ARDUINO_MEGA_2560_COMPILATION_DATE_AND_TIME%
-      </td>
-    </tr>
-    <tr>
       <th style="text-align: left">Uptime</th>
       <td id="Arduino_Mega_2560_UpTime" style="text-align: left">
         %ARDUINO_MEGA_2560_UPTIME%
@@ -66,10 +60,6 @@
     <tr>
       <th style="text-align: left">Local IP Address</th>
       <td style="text-align: left">%ESP32_LOCAL_IP_ADDRESS%</td>
-    </tr>
-    <tr>
-      <th style="text-align: left">Compilation Date &amp; Time</th>
-      <td style="text-align: left">%ESP32_COMPILATION_DATE_AND_TIME%</td>
     </tr>
     <tr>
       <th style="text-align: left">Uptime</th>
@@ -317,44 +307,85 @@
   <table>
     <tbody>
       <tr>
-        <th colspan="3">DS3231</th>
+        <th colspan="4">DS3231</th>
       </tr>
       <tr>
         <th colspan="2" style="text-align: left">Time</th>
-        <td id="DS3231_Time" style="text-align: left"></td>
+        <td colspan="2" style="text-align: left">
+          <span id="DS3231_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Time_InPut" />
+        </td>
       </tr>
 
       <tr>
         <th rowspan="3" style="text-align: left">Alarm 1</th>
         <th style="text-align: left">Time</th>
-        <td id="DS3231_Alarm_1_Time" style="text-align: left"></td>
+        <td>
+          <span id="DS3231_Alarm_1_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Alarm_1_Time_InPut" />
+        </td>
+        <td rowspan="2">
+          <button type="button" class="DS3231_Alarm_Clear_Button" data-number="1">
+            Clear
+          </button>
+        </td>
       </tr>
       <tr>
         <th style="text-align: left">Mode</th>
-        <td id="DS3231_Alarm_1_Mode" style="text-align: left"></td>
+        <td>
+          <span id="DS3231_Alarm_1_Mode"></span>
+          <br />
+          <select id="DS3231_Alarm_1_Mode_InPut">
+            <option selected disabled>(Select)</option>
+            <option value="Per Second">Per Second</option>
+            <option value="Second">Second</option>
+            <option value="Minute">Minute</option>
+            <option value="Hour">Hour</option>
+            <option value="Date">Date</option>
+            <option value="Day">Day</option>
+          </select>
+        </td>
       </tr>
       <tr>
         <th style="text-align: left">Is Fired</th>
-        <td id="DS3231_Alarm_1_Is_Fired" style="text-align: left"></td>
+        <td colspan="2" id="DS3231_Alarm_1_Is_Fired" style="text-align: left"></td>
       </tr>
 
       <tr>
         <th rowspan="3" style="text-align: left">Alarm 2</th>
         <th style="text-align: left">Time</th>
-        <td id="DS3231_Alarm_2_Time" style="text-align: left"></td>
+        <td>
+          <span id="DS3231_Alarm_2_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Alarm_2_Time_InPut" />
+        </td>
+        <td rowspan="2">
+          <button type="button" class="DS3231_Alarm_Clear_Button" data-number="2">
+            Clear
+          </button>
       </tr>
-      <tr>
-        <th style="text-align: left">Mode</th>
-        <td id="DS3231_Alarm_2_Mode" style="text-align: left"></td>
-      </tr>
+      <th style="text-align: left">Mode</th>
+      <td>
+        <span id="DS3231_Alarm_2_Mode"></span>
+        <br />
+        <select id="DS3231_Alarm_2_Mode_InPut">
+          <option selected disabled>(Select)</option>
+          <option value="Minute">Minute</option>
+          <option value="Hour">Hour</option>
+          <option value="Date">Date</option>
+          <option value="Day">Day</option>
+        </select>
+      </td>
       <tr>
         <th style="text-align: left">Is Fired</th>
-        <td id="DS3231_Alarm_2_Is_Fired" style="text-align: left"></td>
+        <td colspan="2" id="DS3231_Alarm_2_Is_Fired" style="text-align: left"></td>
       </tr>
 
       <tr>
         <th colspan="2" style="text-align: left">Temperature</th>
-        <td id="DS3231_Temperature" style="text-align: left"></td>
+        <td colspan="2" id="DS3231_Temperature" style="text-align: left"></td>
       </tr>
     </tbody>
   </table>
@@ -413,7 +444,7 @@
           <button type="button" class="ULN2003_Step_Button" data-direction="-">
             Step CCW
           </button>
-          <input type="number" id="ULN2003_Steps_Input" placeholder="Steps" value="2038" />
+          <input type="number" id="ULN2003_Steps_InPut" placeholder="Steps" value="2038" />
           <button type="button" class="ULN2003_Step_Button" data-direction="+">
             Step CW
           </button>

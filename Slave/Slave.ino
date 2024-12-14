@@ -23,7 +23,7 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 
-#include <AsyncTCP.h>          /* https://github.com/me-no-dev/AsyncTCP/ */ /* Manual Download */
+#include <AsyncTCP.h> /* https://github.com/me-no-dev/AsyncTCP/ */                   /* Manual Download */
 #include <ESPAsyncWebServer.h> /* https://github.com/me-no-dev/ESPAsyncWebServer/ */ /* Manual Download */
 
 #include <ArduinoJson.h> /* https://github.com/bblanchon/ArduinoJson/ */
@@ -43,8 +43,6 @@
 
 AsyncWebServer Server(WEBSERVER_PORT);
 AsyncEventSource Events("/Server_Sent_Events");
-
-const char *Compilation_Date_and_Time = __DATE__ " " __TIME__;
 
 void SetUp_LED_BUILTIN()
 {
@@ -87,11 +85,7 @@ String Process_Page(const String &Variable)
     Chip_ID |= ((ESP.getEfuseMac() >> (40 - Iteration)) & 0xff) << Iteration;
   }
 
-  if (Variable == "ESP32_COMPILATION_DATE_AND_TIME")
-  {
-    return String(Compilation_Date_and_Time);
-  }
-  else if (Variable == "ESP32_CHIP_MODEL")
+  if (Variable == "ESP32_CHIP_MODEL")
   {
     return String(ESP.getChipModel());
   }
@@ -479,7 +473,7 @@ void loop(void)
 
       String Arduino_Mega_2560_JSON_String;
       serializeJson(ARDUINO_MEGA_2560_JSON, Arduino_Mega_2560_JSON_String);
-      Events.send(Arduino_Mega_2560_JSON_String.c_str(), "JSON", millis());
+      Events.send(Arduino_Mega_2560_JSON_String.c_str(), "SSE", millis());
     }
 
     digitalWrite(LED_BUILTIN, HIGH); /* Off */
