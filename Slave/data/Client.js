@@ -64,9 +64,8 @@ function Place_Value(Element_ID, Value) {
       Element_ID == "Arduino_Mega_2560_UpTime" ||
       Element_ID == "ESP32_UpTime"
     ) {
-      document.getElementById(Element_ID).innerHTML = parseFloat(
-        Value / 1000
-      ).toFixed(2) + " s";
+      document.getElementById(Element_ID).innerHTML =
+        parseFloat(Value / 1000).toFixed(2) + " s";
     } else if (Element_ID == "DS3231_Time") {
       var Time = new Date(Value * 1000);
 
@@ -249,12 +248,43 @@ if (!!window.EventSource) {
   console.error("SSE is not supported by this web browser!");
 }
 
+document.getElementById("Set_Active_Status_Button").onclick = function () {
+  fetch(
+    "/Requests?JSON=" +
+      JSON.stringify({
+        Active_Status: {
+          I2C_Devices: document.getElementById("I2C_Devices_Active_Status")
+            .checked,
+          MPU9250: document.getElementById("MPU9250_Active_Status").checked,
+          BH1750: document.getElementById("BH1750_Active_Status").checked,
+          BME280: document.getElementById("BME280_Active_Status").checked,
+          DSM501A: document.getElementById("DSM501A_Active_Status").checked,
+          MQs: document.getElementById("MQs_Active_Status").checked,
+          IR: document.getElementById("IR_Active_Status").checked,
+          HC_SR501: document.getElementById("HC_SR501_Active_Status").checked,
+          RCWL0516: document.getElementById("RCWL0516_Active_Status").checked,
+          RDM6300: document.getElementById("RDM6300_Active_Status").checked,
+          RC522: document.getElementById("RC522_Active_Status").checked,
+          NEO7M: document.getElementById("NEO7M_Active_Status").checked,
+          DS3231: document.getElementById("DS3231_Active_Status").checked,
+        },
+      }),
+    {
+      method: "GET",
+    }
+  )
+    .then(function (Response) {
+      return Response.text();
+    })
+    .then(function (Response_Text) {
+      Show_Alert(Response_Text);
+    });
+};
+
 Array.prototype.forEach.call(
   document.querySelectorAll(".ReBoot_Button"),
   function (ReBoot_Button) {
     ReBoot_Button.onclick = function () {
-      ReBoot_Button.innerHTML = "Requesting";
-
       fetch(
         '/Requests?JSON={"ReBoot_' + ReBoot_Button.dataset.device + '": true}',
         {
@@ -265,7 +295,6 @@ Array.prototype.forEach.call(
           return response.text();
         })
         .then(function (Response_Text) {
-          ReBoot_Button.innerHTML = "Reboot";
           Show_Alert(Response_Text);
         });
     };
@@ -502,8 +531,6 @@ Array.prototype.forEach.call(
 
 var WiFi_Scan_Button = document.getElementById("WiFi_Scan_Button");
 WiFi_Scan_Button.onclick = function () {
-  WiFi_Scan_Button.innerHTML = "Scanning";
-
   fetch(
     "/Requests?JSON=" +
       JSON.stringify({
@@ -522,8 +549,24 @@ WiFi_Scan_Button.onclick = function () {
       } else {
         document.getElementById("WiFi_Scan_Result").innerHTML =
           WiFi_Scan_Result;
-
-        WiFi_Scan_Button.innerHTML = "Scan";
       }
+    });
+};
+
+document.getElementById("SIM900A_AT_Command_Button").onclick = function () {
+  fetch(
+    "/Requests?JSON=" +
+      JSON.stringify({
+        SIM900A_AT: document.getElementById("SIM900A_AT_InPut").value,
+      }),
+    {
+      method: "GET",
+    }
+  )
+    .then(function (Response) {
+      return Response.text();
+    })
+    .then(function (Response_Text) {
+      Show_Alert(Response_Text);
     });
 };

@@ -201,7 +201,7 @@ struct Active_Status_Type
 
   Active_Status_Type() : I2C_Devices(false), MPU9250(false), BH1750(false), BME280(false), DSM501A(false), MQs(false), IR(false), HC_SR501(false), RCWL0516(false), RDM6300(false), RC522(false), NEO7M(false), DS3231(false) {}
 };
-Active_Status_Type Active_Status = Active_Status_Type(); // TODO: Add in Client
+Active_Status_Type Active_Status = Active_Status_Type();
 
 void (*ReBoot_Arduino_Mega_2560)(void) = nullptr;
 
@@ -377,9 +377,7 @@ void SetUp_SIM900A(void)
 
   SIM900A.print("ATE0\r\n"); /* Disable Command Echo */
 
-  while (!SIM900A.available())
-  {
-  };
+  delay(1000);
 
   SIM900A.print("AT+CMEE=2\r\n"); /* Verbose Error */
 }
@@ -977,7 +975,7 @@ void Receive_JSON(void)
         }
       }
 
-      if (ESP32_JSON.containsKey("SIM900A_AT")) // TODO: Add in Client
+      if (ESP32_JSON.containsKey("SIM900A_AT"))
       {
         String SIM900A_AT = ESP32_JSON["SIM900A_AT"].as<String>();
 
@@ -1023,11 +1021,3 @@ void loop(void)
 
   Receive_JSON();
 }
-
-// DSM501A Physical Test and Calibration
-// Fix DS3231's: Alarm Time Output, Alarm Clearance and Interrupt
-// Hardware Failure: RCWL0156, RC522, BME280, MPU9250
-// Inform Client from SIM900A
-// NEO7M Physical Test
-// SIM900A Registration Failure
-// Set Usage of RGB LED

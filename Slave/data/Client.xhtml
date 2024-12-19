@@ -70,6 +70,97 @@
   <table>
     <tbody>
       <tr>
+        <th colspan="2">Set Active Status</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">I2C Devices</th>
+        <td>
+          <input type="checkbox" id="I2C_Devices_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">MPU9250</th>
+        <td>
+          <input type="checkbox" id="MPU9250_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">BH1750</th>
+        <td>
+          <input type="checkbox" id="BH1750_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">BME280</th>
+        <td>
+          <input type="checkbox" id="BME280_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">DSM501A</th>
+        <td>
+          <input type="checkbox" id="DSM501A_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">MQs</th>
+        <td>
+          <input type="checkbox" id="MQs_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">IR</th>
+        <td>
+          <input type="checkbox" id="IR_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">HC_SR501</th>
+        <td>
+          <input type="checkbox" id="HC_SR501_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RCWL0516</th>
+        <td>
+          <input type="checkbox" id="RCWL0516_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RDM6300</th>
+        <td>
+          <input type="checkbox" id="RDM6300_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RC522</th>
+        <td>
+          <input type="checkbox" id="RC522_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">NEO7M</th>
+        <td>
+          <input type="checkbox" id="NEO7M_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">DS3231</th>
+        <td>
+          <input type="checkbox" id="DS3231_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <button type="button" id="Set_Active_Status_Button">Set</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
         <th colspan="3">MPU9250</th>
       </tr>
 
@@ -314,7 +405,7 @@
         <td colspan="2" style="text-align: left">
           <span id="DS3231_Time"></span>
           <br />
-          <input type="datetime-local" id="DS3231_Time_InPut" />
+          <input type="datetime-local" id="DS3231_Time_InPut" value="" />
         </td>
       </tr>
 
@@ -324,7 +415,7 @@
         <td>
           <span id="DS3231_Alarm_1_Time"></span>
           <br />
-          <input type="datetime-local" id="DS3231_Alarm_1_Time_InPut" />
+          <input type="datetime-local" id="DS3231_Alarm_1_Time_InPut" value="" />
         </td>
         <td rowspan="2">
           <button type="button" class="DS3231_Alarm_Clear_Button" data-number="1">
@@ -359,7 +450,7 @@
         <td>
           <span id="DS3231_Alarm_2_Time"></span>
           <br />
-          <input type="datetime-local" id="DS3231_Alarm_2_Time_InPut" />
+          <input type="datetime-local" id="DS3231_Alarm_2_Time_InPut" value="" />
         </td>
         <td rowspan="2">
           <button type="button" class="DS3231_Alarm_Clear_Button" data-number="2">
@@ -511,6 +602,20 @@
   </table>
 
   <div id="WiFi_Scan_Result"></div>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">SIM900A</th>
+      </tr>
+      <tr>
+        <th>AT Command</th>
+        <td>
+          <input type="text" id="SIM900A_AT_InPut" placeholder="AT" value="" />
+          <button type="button" id="SIM900A_AT_Command_Button">Command</button>
+      </tr>
+    </tbody>
+  </table>
 
   <script src="Client.js"></script>
 </body>
