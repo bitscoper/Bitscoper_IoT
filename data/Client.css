@@ -1,0 +1,92 @@
+/* By Abdullah As-Sadeed */
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+*:focus {
+  outline: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  text-align: center;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-bottom: 40px;
+}
+
+h1 {
+  margin-bottom: 0;
+}
+
+table {
+  border: 1px solid silver;
+  margin: 20px;
+  table-layout: fixed;
+}
+
+th,
+td {
+  border: 1px solid silver;
+  padding: 5px 15px;
+}
+
+button {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.Top_Bar {
+  overflow: hidden;
+  background-color: darkslategrey;
+  color: white;
+  padding-bottom: 20px;
+}
+
+.Alert_Box {
+  visibility: hidden;
+  background-color: black;
+  color: white;
+  text-align: center;
+  border-radius: 5px;
+  padding: 10px 20px 10px 20px;
+  position: fixed;
+  z-index: 1;
+  left: 50%;
+  transform: translate(-50%, 0);
+  bottom: 20px;
+}
+
+.Alert_Box.show {
+  visibility: visible;
+  animation: Alert_Box_in 0.5s, Alert_Box_out 0.5s 2.5s;
+}
+
+@keyframes Alert_Box_in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes Alert_Box_out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
