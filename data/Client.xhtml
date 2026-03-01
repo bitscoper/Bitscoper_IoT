@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<!-- by Abdullah As-Sadeed -->
+<html lang="en-US" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Bitscoper IoT</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="Abdullah As-Sadeed" />
+  <meta name="description" content="Bitscoper IoT" />
+  <link rel="stylesheet" type="text/css" href="Client.css" />
+</head>
+
+<body lang="en-US">
+  <div class="Top_Bar">
+    <h1>Bitscoper IoT</h1>
+  </div>
+
+  <table>
+    <tr>
+      <th colspan="2">Arduino Mega 2560</th>
+    </tr>
+    <tr>
+      <th style="text-align: left">Uptime</th>
+      <td id="Arduino_Mega_2560_UpTime" style="text-align: left">
+        %ARDUINO_MEGA_2560_UPTIME%
+      </td>
+    </tr>
+  </table>
+
+  <table>
+    <tr>
+      <th colspan="2">ESP32_CAM</th>
+    </tr>
+    <tr>
+      <th style="text-align: left">Chip Model</th>
+      <td style="text-align: left">%ESP32_CAM_CHIP_MODEL%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Chip Revision</th>
+      <td style="text-align: left">%ESP32_CAM_CHIP_REVISION%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Chip Cores</th>
+      <td style="text-align: left">%ESP32_CAM_CHIP_CORES%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Chip ID</th>
+      <td style="text-align: left">%ESP32_CAM_CHIP_ID%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">MAC Address</th>
+      <td style="text-align: left">%ESP32_CAM_MAC_ADDRESS%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Host Name</th>
+      <td style="text-align: left">%ESP32_CAM_HOST_NAME%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Local IP Address</th>
+      <td style="text-align: left">%ESP32_CAM_LOCAL_IP_ADDRESS%</td>
+    </tr>
+    <tr>
+      <th style="text-align: left">Uptime</th>
+      <td id="ESP32_CAM_UpTime" style="text-align: left">%ESP32_CAM_UPTIME%</td>
+    </tr>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">Set Active Status</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">I2C Devices</th>
+        <td>
+          <input type="checkbox" id="I2C_Devices_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">MPU9250</th>
+        <td>
+          <input type="checkbox" id="MPU9250_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">BH1750</th>
+        <td>
+          <input type="checkbox" id="BH1750_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">BME280</th>
+        <td>
+          <input type="checkbox" id="BME280_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">DSM501A</th>
+        <td>
+          <input type="checkbox" id="DSM501A_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">MQs</th>
+        <td>
+          <input type="checkbox" id="MQs_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">IR</th>
+        <td>
+          <input type="checkbox" id="IR_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">HC_SR501</th>
+        <td>
+          <input type="checkbox" id="HC_SR501_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RCWL0516</th>
+        <td>
+          <input type="checkbox" id="RCWL0516_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RDM6300</th>
+        <td>
+          <input type="checkbox" id="RDM6300_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RC522</th>
+        <td>
+          <input type="checkbox" id="RC522_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">NEO7M</th>
+        <td>
+          <input type="checkbox" id="NEO7M_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">DS3231</th>
+        <td>
+          <input type="checkbox" id="DS3231_Active_Status" />
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <button type="button" id="Set_Active_Status_Button">Set</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="3">MPU9250</th>
+      </tr>
+
+      <tr>
+        <th rowspan="4" style="text-align: left">Acceleration</th>
+        <th style="text-align: left">X</th>
+        <td id="MPU9250_Acceleration_X" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Y</th>
+        <td id="MPU9250_Acceleration_Y" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Z</th>
+        <td id="MPU9250_Acceleration_Z" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Resultant</th>
+        <td id="MPU9250_Acceleration_Resultant" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th rowspan="3" style="text-align: left">Gyro</th>
+        <th style="text-align: left">X</th>
+        <td id="MPU9250_Gyro_X" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Y</th>
+        <td id="MPU9250_Gyro_Y" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Z</th>
+        <td id="MPU9250_Gyro_Z" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th rowspan="3" style="text-align: left">Magneto</th>
+        <th style="text-align: left">X</th>
+        <td id="MPU9250_Magneto_X" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Y</th>
+        <td id="MPU9250_Magneto_Y" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Z</th>
+        <td id="MPU9250_Magneto_Z" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th colspan="2" style="text-align: left">Temperature</th>
+        <td id="MPU9250_Temperature" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">BH1750</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">Light</th>
+        <td id="BH1750_Light" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">BME280</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">Temperature</th>
+        <td id="BME280_Temperature" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Humidity</th>
+        <td id="BME280_Humidity" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">Pressure</th>
+        <td id="BME280_Pressure" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Altitude</th>
+        <td id="BME280_Altitude" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="3">DSM501A</th>
+      </tr>
+      <tr>
+        <th>PM 2.5</th>
+        <td id="DSM501A_PM25_mgm3" style="text-align: left"></td>
+        <td id="DSM501A_PM25_pcs283ml" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th>PM 1.0</th>
+        <td id="DSM501A_PM1_mgm3" style="text-align: left"></td>
+        <td id="DSM501A_PM1_pcs283ml" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th style="text-align: left">MQ2</th>
+        <td id="MQ2" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ3</th>
+        <td id="MQ3" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ4</th>
+        <td id="MQ4" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ5</th>
+        <td id="MQ5" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ6</th>
+        <td id="MQ6" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ7</th>
+        <td id="MQ7" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ8</th>
+        <td id="MQ8" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ9</th>
+        <td id="MQ9" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th style="text-align: left">MQ135</th>
+        <td id="MQ135" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th style="text-align: left">IR Radiation</th>
+        <td id="IR_Radiation" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">Motion</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">HC-SR501</th>
+        <td id="HC_SR501" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RCWL0516</th>
+        <td id="RCWL0516" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th style="text-align: left">RDM6300 Reading</th>
+        <td id="RDM6300_Reading" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">RC522 UID</th>
+        <td id="RC522_UID" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">NEO7M</th>
+      </tr>
+      <tr>
+        <th style="text-align: left">Satellites</th>
+        <td id="NEO7M_Satellites" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Latitude</th>
+        <td id="NEO7M_Latitude" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Longitude</th>
+        <td id="NEO7M_Longitude" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Speed</th>
+        <td id="NEO7M_Speed" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Course</th>
+        <td id="NEO7M_Course" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Altitude</th>
+        <td id="NEO7M_Altitude" style="text-align: left"></td>
+      </tr>
+      <tr>
+        <th style="text-align: left">HDOP</th>
+        <td id="NEO7M_HDOP" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="4">DS3231</th>
+      </tr>
+      <tr>
+        <th colspan="2" style="text-align: left">Time</th>
+        <td colspan="2" style="text-align: left">
+          <span id="DS3231_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Time_InPut" value="" />
+        </td>
+      </tr>
+
+      <tr>
+        <th rowspan="3" style="text-align: left">Alarm 1</th>
+        <th style="text-align: left">Time</th>
+        <td>
+          <span id="DS3231_Alarm_1_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Alarm_1_Time_InPut" value="" />
+        </td>
+        <td rowspan="2">
+          <button type="button" class="DS3231_Alarm_Clear_Button" data-number="1">
+            Clear
+          </button>
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Mode</th>
+        <td>
+          <span id="DS3231_Alarm_1_Mode"></span>
+          <br />
+          <select id="DS3231_Alarm_1_Mode_InPut">
+            <option selected disabled>(Select)</option>
+            <option value="Per Second">Per Second</option>
+            <option value="Second">Second</option>
+            <option value="Minute">Minute</option>
+            <option value="Hour">Hour</option>
+            <option value="Date">Date</option>
+            <option value="Day">Day</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <th style="text-align: left">Is Fired</th>
+        <td colspan="2" id="DS3231_Alarm_1_Is_Fired" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th rowspan="3" style="text-align: left">Alarm 2</th>
+        <th style="text-align: left">Time</th>
+        <td>
+          <span id="DS3231_Alarm_2_Time"></span>
+          <br />
+          <input type="datetime-local" id="DS3231_Alarm_2_Time_InPut" value="" />
+        </td>
+        <td rowspan="2">
+          <button type="button" class="DS3231_Alarm_Clear_Button" data-number="2">
+            Clear
+          </button>
+      </tr>
+      <th style="text-align: left">Mode</th>
+      <td>
+        <span id="DS3231_Alarm_2_Mode"></span>
+        <br />
+        <select id="DS3231_Alarm_2_Mode_InPut">
+          <option selected disabled>(Select)</option>
+          <option value="Minute">Minute</option>
+          <option value="Hour">Hour</option>
+          <option value="Date">Date</option>
+          <option value="Day">Day</option>
+        </select>
+      </td>
+      <tr>
+        <th style="text-align: left">Is Fired</th>
+        <td colspan="2" id="DS3231_Alarm_2_Is_Fired" style="text-align: left"></td>
+      </tr>
+
+      <tr>
+        <th colspan="2" style="text-align: left">Temperature</th>
+        <td colspan="2" id="DS3231_Temperature" style="text-align: left"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="3">Actions</th>
+      </tr>
+
+      <tr>
+        <th rowspan="2">Reboot MCUs</th>
+        <th>Arduino Mega 2560</th>
+        <th>ESP32_CAM</th>
+      </tr>
+      <tr>
+        <td>
+          <button type="button" class="ReBoot_Button" data-device="Arduino_Mega_2560">
+            Reboot
+          </button>
+        </td>
+        <td>
+          <button type="button" class="ReBoot_Button" data-device="ESP32_CAM">
+            Reboot
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>I2C Devices</th>
+        <td colspan="2" id="I2C_Devices"></td>
+      </tr>
+
+      <tr>
+        <th rowspan="2">SG90</th>
+        <th>State</th>
+        <th>Position</th>
+      </tr>
+      <tr>
+        <td>
+          <button type="button" class="SG90_State_Button" data-state="1">
+            Attach
+          </button>
+          <button type="button" class="SG90_State_Button" data-state="0">
+            Detach
+          </button>
+        </td>
+        <td>
+          <input type="range" id="SG90_Position_Slider" min="0" max="180" value="180" />
+        </td>
+      </tr>
+
+      <tr>
+        <th>ULN2003</th>
+        <td colspan="2">
+          <button type="button" class="ULN2003_Step_Button" data-direction="-">
+            Step CCW
+          </button>
+          <input type="number" id="ULN2003_Steps_InPut" placeholder="Steps" value="2038" />
+          <button type="button" class="ULN2003_Step_Button" data-direction="+">
+            Step CW
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th rowspan="2">Relays</th>
+        <th>Relay 1</th>
+        <th>Relay 2</th>
+      </tr>
+      <tr>
+        <td>
+          <button type="button" class="Relay_Button" data-number="1" data-state="1">
+            On
+          </button>
+          <button type="button" class="Relay_Button" data-number="1" data-state="0">
+            Off
+          </button>
+        </td>
+        <td>
+          <button type="button" class="Relay_Button" data-number="2" data-state="1">
+            On
+          </button>
+          <button type="button" class="Relay_Button" data-number="2" data-state="0">
+            Off
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>Buzzer</th>
+        <td colspan="2">
+          <button type="button" class="Buzzer_Button" data-state="1">
+            On
+          </button>
+          <button type="button" class="Buzzer_Button" data-state="0">
+            Off
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>Flash LED</th>
+        <td colspan="2">
+          <button type="button" class="Flash_LED_Button" data-state="1">
+            On
+          </button>
+          <button type="button" class="Flash_LED_Button" data-state="0">
+            Off
+          </button>
+        </td>
+      </tr>
+
+      <tr>
+        <th>
+          <span>Wi-Fi</span>
+          <br />
+          <button type="button" id="WiFi_Scan_Button">Scan</button>
+        </th>
+        <td colspan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="WiFi_Scan_Result"></div>
+
+  <table>
+    <tbody>
+      <tr>
+        <th colspan="2">SIM900A</th>
+      </tr>
+      <tr>
+        <th>AT Command</th>
+        <td>
+          <input type="text" id="SIM900A_AT_InPut" placeholder="AT" value="" />
+          <button type="button" id="SIM900A_AT_Command_Button">Command</button>
+      </tr>
+    </tbody>
+  </table>
+
+  <script src="Client.js"></script>
+</body>
+
+</html>

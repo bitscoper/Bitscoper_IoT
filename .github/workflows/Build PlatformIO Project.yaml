@@ -1,0 +1,35 @@
+name: Build PlatformIO Project
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build PlatformIO Project
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.13"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+        shell: bash
+
+      - name: Build PlatformIO Project
+        run: pio run
+        shell: bash
