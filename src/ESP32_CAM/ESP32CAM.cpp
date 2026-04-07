@@ -134,7 +134,7 @@ void Handle_Root(AsyncWebServerRequest *Request)
 
   const char *XHTML_Body PROGMEM = XHTML_Body_Content.c_str();
 
-  AsyncWebServerResponse *Response = Request->beginResponse_P(200, "text/html; charset=utf-8", XHTML_Body, Process_Page);
+  AsyncWebServerResponse *Response = Request->beginResponse(200, "text/html; charset=utf-8", XHTML_Body, Process_Page);
   Add_Common_Headers(Response);
   Request->send(Response);
 
@@ -147,7 +147,7 @@ void Serve_FavIcon(AsyncWebServerRequest *Request)
 
   File FavIcon_File = LittleFS.open("/favicon.ico", "r");
 
-  AsyncWebServerResponse *Response = Request->beginResponse(FavIcon_File, "Bitscoper_IoT");
+  AsyncWebServerResponse *Response = Request->beginResponse(FavIcon_File, String("/favicon.ico"), String("image/x-icon"));
   Response->addHeader("Content-Type", "image/vnd.microsoft.icon");
   Add_Common_Headers(Response);
   Request->send(Response);
@@ -271,7 +271,7 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
         {
           String Response_String = "";
 
-          if (Request_JSON.containsKey("Flash_LED"))
+          if (!Request_JSON["Flash_LED"].isNull())
           {
             bool Flash_LED_State = Request_JSON["Flash_LED"].as<bool>();
 
@@ -285,7 +285,7 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
             }
           }
 
-          if (Request_JSON.containsKey("Scan_WiFi"))
+          if (!Request_JSON["Scan_WiFi"].isNull())
           {
             Response_String = Scan_WiFi();
           }
@@ -298,7 +298,7 @@ void Handle_Request_JSON(AsyncWebServerRequest *Request)
           Add_Common_Headers(Response);
           Request->send(Response);
 
-          if (Request_JSON.containsKey("ReBoot_ESP32_CAM"))
+          if (!Request_JSON["ReBoot_ESP32_CAM"].isNull())
           {
             if (Request_JSON["ReBoot_ESP32_CAM"].as<bool>())
             {
