@@ -12,6 +12,18 @@ A versatile Internet of Things project
 
 ## Commands
 
+### Preparing Environment
+
+```sh
+python3.14 -m venv ./.venv
+
+source ./.venv/bin/activate
+
+pip3.14 install --upgrade pip
+
+pip3.14 install -r requirements.txt --upgrade
+```
+
 ### Arduino Mega 2560
 
 #### Build
