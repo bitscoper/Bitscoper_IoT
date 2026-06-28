@@ -2,7 +2,7 @@
 
 # Bitscoper IoT
 
-A versatile Internet of Things project
+A Versatile Internet of Things Project
 
 [![Build PlatformIO Project](https://github.com/bitscoper/Bitscoper_IoT/actions/workflows/Build%20PlatformIO%20Project.yaml/badge.svg)](https://github.com/bitscoper/Bitscoper_IoT/actions/workflows/Build%20PlatformIO%20Project.yaml)
 
