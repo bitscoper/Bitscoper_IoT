@@ -4,6 +4,7 @@
 
 A Versatile Internet of Things Project
 
+[![No AI](https://raw.githubusercontent.com/nuxy/no-ai-badge/master/badge.svg)](https://github.com/bitscoper/Bitscoper_IoT#notes)
 [![Build PlatformIO Project](https://github.com/bitscoper/Bitscoper_IoT/actions/workflows/Build%20PlatformIO%20Project.yaml/badge.svg)](https://github.com/bitscoper/Bitscoper_IoT/actions/workflows/Build%20PlatformIO%20Project.yaml)
 
 ![Fritzing Sketch](Fritzing/Sketch.png)
@@ -115,3 +116,4 @@ pip3.14 install -r requirements.txt --upgrade
 
 - I write commit messages in Title Case and past tense, leaving out articles to keep them concise while still showing details.
 - I reuploaded the repository to clean up the commit history, but this is unlikely to happen again.
+- I later PGP-signed all my commits, so they show a later date.
